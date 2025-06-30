@@ -362,6 +362,62 @@ prv_get_port_with_global_index(graph_t* graph, prv_u64_tuple_t* port_index_map, 
     return port;
 }
 
+void
+prv_deserialize_port(daggle_instance_h instance, node_t* node, uint64_t global_index, uint64_t local_index, const port_entry_1_t* ports, char* strings, unsigned char* datas){
+    port_t* port_element = dynamic_array_at(&node->ports, local_index);
+
+    const port_entry_1_t* port_entry = ports + global_index;
+    const char* port_name = strings + port_entry->name_stoff;
+
+    printf("- Port: %s\n", port_name);
+    printf("  - Index: port[%llu]\n", global_index);
+
+    const char* pvarnames[] = {"INPUT", "OUTPUT", "PARAMETER"};
+    printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
+
+    daggle_port_variant_t variant;
+    variant = prv_port_variant_1_to_daggle(port_entry->port_variant);
+
+    port_init(node, port_name, variant, port_element);
+
+    // Deserialize input port variant
+    if (port_entry->port_variant == INPUT) {
+        const char* ivarnames[] = {"IMMUTABLE_REFERENCE", 
+            "IMMUTABLE_COPY", "MUTABLE_REFERENCE", "MUTABLE_COPY"};
+        printf("  - Input: %s\n", 
+            ivarnames[port_entry->port_specific.input]);
+
+        if (port_entry->edge_ptidx != UINT64_MAX) {
+            printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
+        }
+
+        daggle_input_variant_t input_variant;
+        input_variant = prv_input_variant_1_to_daggle(
+            port_entry->port_specific.input);
+            
+        port_element->variant.input.variant = input_variant;
+    }
+
+    // If port has data deserialize it and set the port value
+    if (port_entry->data_dtoff != UINT64_MAX) {
+        data_entry_1_t* data_entry = (void*)datas + port_entry->data_dtoff;
+
+        const char* data_type = strings + data_entry->type_stoff;
+
+        printf("  - Data: %s (%lluB)\n", data_type, data_entry->size);
+
+        void* deserialized_data = NULL;
+        daggle_data_deserialize(instance, data_type, data_entry->bytes,
+            data_entry->size, &deserialized_data);
+
+        type_info_t* typeinfo;
+        resource_container_get_type(
+            &((instance_t*)instance)->plugin_manager.res, data_type, &typeinfo);
+
+        data_container_replace(&port_element->value, typeinfo, deserialized_data);
+    }
+}
+
 daggle_error_code_t
 prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
     daggle_graph_h* out_graph) 
@@ -388,8 +444,8 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
 
     printf("Version: %llu\nNodes: %llu\nPorts: %llu\n", version, num_nodes, num_ports);
 
-    for (int i = 0; i < num_nodes; i++) {
-        const node_entry_1_t* node_entry = nodes + i;
+    for (int node_index = 0; node_index < num_nodes; node_index++) {
+        const node_entry_1_t* node_entry = nodes + node_index;
 
         const char* node_name = strings + node_entry->name_stoff;
         const char* node_type = strings + node_entry->type_stoff;
@@ -398,8 +454,8 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
 
         // Construct node
         node_info_t* info;
-        resource_container_get_node(
-            &graph->instance->plugin_manager.res, node_type, &info);
+        resource_container_get_node(&graph->instance->plugin_manager.res, 
+            node_type, &info);
 
         node_t* node = malloc(sizeof *node);
 
@@ -413,67 +469,15 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
         dynamic_array_init(node_entry->num_ports, sizeof(port_t), &node->ports);
         node->ports.length = node_entry->num_ports;
 
-        for (int j = 0; j < node_entry->num_ports; j++) {
-            port_t* port_element = dynamic_array_at(&node->ports, j);
-
-            uint64_t port_global_index = node_entry->first_port_ptidx + j;
+        for (int local_index = 0; local_index < node_entry->num_ports; local_index++) {
+            uint64_t global_index = node_entry->first_port_ptidx + local_index;
 
             // Store the node and local port indices of this port.
-            port_index_map[port_global_index].node_index = i;
-            port_index_map[port_global_index].port_index = j;
-            
-            const port_entry_1_t* port_entry = ports + port_global_index;
-            const char* port_name = strings + port_entry->name_stoff;
+            port_index_map[global_index].node_index = node_index;
+            port_index_map[global_index].port_index = local_index;
 
-            printf("- Port: %s\n", port_name);
-            printf("  - Index: port[%llu]\n", port_global_index);
-
-            const char* pvarnames[] = {"INPUT", "OUTPUT", "PARAMETER"};
-            printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
-
-            daggle_port_variant_t variant;
-            variant = prv_port_variant_1_to_daggle(port_entry->port_variant);
-
-            data_container_t data;
-            data_container_init(instance, &data);
-
-            // If port has data
-            if (port_entry->data_dtoff != UINT64_MAX) {
-                data_entry_1_t* data_entry = (void*)datas + port_entry->data_dtoff;
-
-                const char* data_type = strings + data_entry->type_stoff;
-
-                printf("  - Data: %s (%lluB)\n", data_type, data_entry->size);
-
-                void* deserialized_data = NULL;
-                daggle_data_deserialize(instance, data_type, data_entry->bytes,
-                    data_entry->size, &deserialized_data);
-
-                type_info_t* typeinfo;
-                resource_container_get_type(
-                    &graph->instance->plugin_manager.res, data_type, &typeinfo);
-
-                data_container_replace(&data, typeinfo, deserialized_data);
-            }
-
-            port_init(node, port_name, data, variant, port_element);
-
-            // Deserialize input port variant
-            if (port_entry->port_variant == INPUT) {
-                const char* ivarnames[] = {"IMMUTABLE_REFERENCE", 
-                    "IMMUTABLE_COPY", "MUTABLE_REFERENCE", "MUTABLE_COPY"};
-                printf("  - Input: %s\n", 
-                    ivarnames[port_entry->port_specific.input]);
-
-                if (port_entry->edge_ptidx != UINT64_MAX) {
-                    printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
-                }
-
-                daggle_input_variant_t input_variant;
-                input_variant = prv_input_variant_1_to_daggle(
-                    port_entry->port_specific.input);
-                port_element->variant.input.variant = input_variant;
-            }
+            prv_deserialize_port(instance, node, global_index, local_index, 
+                ports, strings, datas);
         }
 
         dynamic_array_push(&graph->nodes, &node);

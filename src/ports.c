@@ -31,7 +31,6 @@ void
 port_init(
 	daggle_node_h node,
 	const char* port_name,
-	data_container_t data,
 	daggle_port_variant_t variant,
 	port_t* port)
 {
@@ -39,27 +38,23 @@ port_init(
 	ASSERT_PARAMETER(port_name);
 	ASSERT_PARAMETER(port);
 
-	name_with_hash_t nh
-		= { .name = strdup(port_name), .hash = fnv1a_32(port_name) };
+	name_with_hash_t nh = { 
+		.name = strdup(port_name), 
+		.hash = fnv1a_32(port_name) 
+	};
 
 	port->name_hash = nh;
 	port->owner = node;
 	port->port_variant = variant;
-	port->value = data;
+	
+	daggle_instance_h instance;
+	daggle_graph_get_daggle(((node_t*)node)->graph, &instance);
+	data_container_init(instance, &port->value);
 
 	if(variant == DAGGLE_PORT_INPUT) {
 		port->variant.input.link = NULL;
+		port->variant.input.variant = DAGGLE_INPUT_IMMUTABLE_REFERENCE;
 	} else if(variant == DAGGLE_PORT_OUTPUT) {
-		daggle_error_code_t error = dynamic_array_init(
-			0, sizeof(port_t*), &port->variant.output.links);
-
-		if(error != DAGGLE_SUCCESS) {
-			LOG_FMT(LOG_TAG_ERROR,
-				"%s while initializing output port link array",
-				daggle_error_code_strings[error]);
-			LOG(LOG_TAG_WARN,
-				"This function does not return an error code; the above error "
-				"may be catastrophic");
-		}
+		dynamic_array_init(0, sizeof(port_t*), &port->variant.output.links);
 	}
 }

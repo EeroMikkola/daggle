@@ -48,7 +48,8 @@ prv_node_declare_port(
 	}
 
 	port_t new_port;
-	port_init(node_impl, port_name, default_value_cnt, variant, &new_port);
+	port_init(node_impl, port_name, variant, &new_port);
+	new_port.value = default_value_cnt;
 
 	if(variant == DAGGLE_PORT_INPUT) {
 		new_port.variant.input.variant = input_variant;
