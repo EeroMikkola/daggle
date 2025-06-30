@@ -21,11 +21,11 @@ typedef struct data_entry_1_s {
 // version: u64
 // num_nodes: u64
 // num_ports: u64
+// strings_len: u64
+// datas_len: u64
 // nodes: node_entry_1_s[num_nodes]
 // ports: port_entry_1_s[num_ports]
-// strings_len: u64
 // strings: char[strings_len]
-// datas_len: u64
 // datas: byte[datas_len], (bytes encode data_entry_1_t[])
 
 // Use versioned structs for backwards compatibility.

@@ -95,7 +95,7 @@ main(void)
 
 	int32_t* out_data;
 	daggle_port_get_value(output_value, (void**)&out_data);
-	printf("%zu -> %zu\n", *data, *out_data);
+	printf("%i -> %i\n", *data, *out_data);
 
 	daggle_graph_free(graph);
 	daggle_instance_free(instance);

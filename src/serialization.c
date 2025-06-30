@@ -151,12 +151,14 @@ void prv_write_arrays_to_bin(
 {
     uint64_t total_size = 0;
 
-    total_size += sizeof(uint64_t) * 3;
+    total_size += sizeof(uint64_t);
+    total_size += sizeof(uint64_t);
+    total_size += sizeof(uint64_t);
+    total_size += sizeof(uint64_t);
+    total_size += sizeof(uint64_t);
     total_size += node_entries->stride * node_entries->length;
     total_size += node_entries->stride * port_entries->length;
-    total_size += sizeof(uint64_t);
     total_size += string_buffer->stride * string_buffer->length;
-    total_size += sizeof(uint64_t);
     total_size += data_buffer->stride * data_buffer->length;
 
     unsigned char* bin = malloc(total_size);
@@ -167,27 +169,20 @@ void prv_write_arrays_to_bin(
 
     prv_offset_write(bin, &node_entries->length, sizeof(uint64_t), &offset);
     prv_offset_write(bin, &port_entries->length, sizeof(uint64_t), &offset);
-
-    prv_offset_write(bin,
-                     node_entries->data,
-                     node_entries->stride * node_entries->length,
-                     &offset);
-    prv_offset_write(bin,
-                     port_entries->data,
-                     port_entries->stride * port_entries->length,
-                     &offset);
-
     prv_offset_write(bin, &string_buffer->length, sizeof(uint64_t), &offset);
-    prv_offset_write(bin,
-                     string_buffer->data,
-                     string_buffer->stride * string_buffer->length,
-                     &offset);
-
     prv_offset_write(bin, &data_buffer->length, sizeof(uint64_t), &offset);
-    prv_offset_write(bin,
-                     data_buffer->data,
-                     data_buffer->stride * data_buffer->length,
-                     &offset);
+
+    prv_offset_write(bin, node_entries->data, 
+        node_entries->stride * node_entries->length, &offset);
+        
+    prv_offset_write(bin, port_entries->data,
+        port_entries->stride * port_entries->length, &offset);
+
+    prv_offset_write(bin, string_buffer->data,
+        string_buffer->stride * string_buffer->length, &offset);
+
+    prv_offset_write(bin, data_buffer->data, 
+        data_buffer->stride * data_buffer->length,  &offset);
 
     *out_bin = bin;
     *out_len = total_size;
@@ -250,8 +245,8 @@ daggle_graph_serialize(
     graph_t* graph = handle;
 
     dynamic_array_t node_entries;
-    dynamic_array_init(
-        graph->nodes.length, sizeof(node_entry_1_t), &node_entries);
+    dynamic_array_init(graph->nodes.length, sizeof(node_entry_1_t), 
+        &node_entries);
 
     dynamic_array_t port_entries;
     dynamic_array_init(0, sizeof(node_entry_1_t), &port_entries);
@@ -303,12 +298,13 @@ daggle_graph_serialize(
             // For input ports, set the input variant, and link if it has one
             if (port->port_variant == DAGGLE_PORT_INPUT)
             {
-                port_entry.port_specific.input = prv_input_variant_daggle_to_1(port->variant.input.variant);
+                port_entry.port_specific.input = prv_input_variant_daggle_to_1(
+                    port->variant.input.variant);
 
                 if (port->variant.input.link)
                 {
-                    port_entry.edge_ptidx = prv_get_port_flat_index(
-                        graph, port->variant.input.link);
+                    port_entry.edge_ptidx = prv_get_port_flat_index(graph, 
+                        port->variant.input.link);
                 }
             }
 
@@ -322,21 +318,16 @@ daggle_graph_serialize(
                 daggle_data_serialize(graph->instance, data_type,
                                       port->value.data, &data_bin, &data_len);
 
-                prv_append_data_buffer(&data_buffer, &string_buffer, 
-                    data_type, data_bin, data_len, 
-                    &port_entry.data_dtoff);
+                prv_append_data_buffer(&data_buffer, &string_buffer, data_type, 
+                    data_bin, data_len, &port_entry.data_dtoff);
             }
 
             dynamic_array_push(&port_entries, &port_entry);
         }
     }
 
-    prv_write_arrays_to_bin(&node_entries,
-                            &port_entries,
-                            &string_buffer,
-                            &data_buffer,
-                            out_bin,
-                            out_len);
+    prv_write_arrays_to_bin(&node_entries, &port_entries, &string_buffer,
+        &data_buffer, out_bin, out_len);
 
     dynamic_array_destroy(&node_entries);
     dynamic_array_destroy(&port_entries);
@@ -356,24 +347,24 @@ prv_graph_deserialize_1(
 
     ASSERT_TRUE(*version == 1, "Wrong graph version");
 
-    const uint64_t* num_nodes = (void*)version + sizeof(uint64_t);
-    const uint64_t* num_ports = (void*)num_nodes + sizeof(uint64_t);
+    uint64_t* nums = (void*)version + sizeof(uint64_t);
 
-    const node_entry_1_t* nodes = (void*)num_ports + sizeof(uint64_t);
-    const port_entry_1_t* ports = (void*)nodes + sizeof(node_entry_1_t) * *num_nodes;
+    const uint64_t num_nodes = nums[0];
+    const uint64_t num_ports = nums[1];
+    const uint64_t strings_len = nums[2];
+    const uint64_t datas_len = nums[3];
 
-    const uint64_t* strings_len = (void*)ports + sizeof(port_entry_1_t) * *num_ports;
-    char* strings = (void*)strings_len + sizeof(uint64_t);
-
-    const uint64_t* datas_len = (void*)strings + *strings_len;
-    unsigned char* datas = (void*)datas_len + sizeof(uint64_t);
+    const node_entry_1_t* nodes = (void*)nums + 4 * sizeof(uint64_t); 
+    const port_entry_1_t* ports = (void*)nodes + sizeof(node_entry_1_t) * num_nodes;
+    char* strings = (void*)ports + sizeof(port_entry_1_t) * num_ports;
+    unsigned char* datas = (void*)strings + sizeof(char) * strings_len;
 
     graph_t* graph;
     daggle_graph_create(instance, (daggle_graph_h)&graph);
 
-    printf("Version: %zu\nNodes: %zu\nPorts: %zu\n", *version, *num_nodes, *num_ports);
+    printf("Version: %llu\nNodes: %llu\nPorts: %llu\n", *version, num_nodes, num_ports);
 
-    for (int i = 0; i < *num_nodes; i++)
+    for (int i = 0; i < num_nodes; i++)
     {
         const node_entry_1_t* node_entry = nodes + i;
 
@@ -425,7 +416,7 @@ prv_graph_deserialize_1(
 
                 const char* data_type = strings + data_entry->type_stoff;
 
-                printf("  - Data: %s (%zuB)\n", data_type, data_entry->size);
+                printf("  - Data: %s (%lluB)\n", data_type, data_entry->size);
 
                 void* deserialized_data = NULL;
                 daggle_data_deserialize(instance,
@@ -463,7 +454,7 @@ prv_graph_deserialize_1(
         dynamic_array_push(&graph->nodes, &node);
     }
 
-    for (int i = 0; i < *num_nodes; i++)
+    for (int i = 0; i < num_nodes; i++)
     {
         node_t** node_element = dynamic_array_at(&graph->nodes, i);
         node_t* node = *node_element;
@@ -479,13 +470,13 @@ prv_graph_deserialize_1(
                 uint64_t node_idx = 0;
                 uint64_t port_idx = 0;
 
-                if (*num_ports < port_entry->edge_ptidx)
+                if (num_ports < port_entry->edge_ptidx)
                 {
                     LOG(LOG_TAG_ERROR, "Connected port not found");
                 }
 
                 prv_get_flat_port_indices(port_entry->edge_ptidx,
-                                          *num_nodes,
+                                          num_nodes,
                                           nodes,
                                           &node_idx,
                                           &port_idx);
@@ -503,7 +494,7 @@ prv_graph_deserialize_1(
         }
     }
 
-    for (int i = 0; i < *num_nodes; i++)
+    for (int i = 0; i < num_nodes; i++)
     {
         node_t** node_element = dynamic_array_at(&graph->nodes, i);
         node_t* node = *node_element;
@@ -529,6 +520,6 @@ daggle_graph_deserialize(
         RETURN_STATUS(prv_graph_deserialize_1(instance, bin, out_graph));
     }
 
-    LOG_FMT(LOG_TAG_ERROR, "Unsupported graph version %zu", version);
+    LOG_FMT(LOG_TAG_ERROR, "Unsupported graph version %llu", *version);
     RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
 }

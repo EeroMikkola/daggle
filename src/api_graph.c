@@ -43,6 +43,8 @@ daggle_graph_free(
 
 	graph->instance = NULL;
 	graph->owner = NULL;
+
+	RETURN_STATUS(DAGGLE_SUCCESS);
 }
 
 daggle_error_code_t
