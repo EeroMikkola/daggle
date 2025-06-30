@@ -236,6 +236,80 @@ void prv_append_data_buffer(
     *out_dtoff = start_offset;
 }
 
+void
+prv_port_serialize_and_push(port_t* port, graph_t* graph, dynamic_array_t* port_entries, dynamic_array_t* string_buffer, dynamic_array_t* data_buffer) {
+    port_entry_1_t port_entry;
+
+    // Initialize port entry
+    port_entry.name_stoff = 0;
+    port_entry.edge_ptidx = UINT64_MAX; // Unset is MAX
+    port_entry.data_dtoff = UINT64_MAX;
+
+    // Write port name to string buffer
+    // and store character offset to name_stoff.
+    prv_append_string_buffer(string_buffer, port->name_hash.name, 
+        &port_entry.name_stoff);
+
+    port_entry.port_variant = prv_port_variant_daggle_to_1(port->port_variant);
+
+    // For input ports, set the input variant, and link if it has one
+    if (port->port_variant == DAGGLE_PORT_INPUT) {
+        port_entry.port_specific.input = prv_input_variant_daggle_to_1(
+            port->variant.input.variant);
+
+        if (port->variant.input.link) {
+            port_entry.edge_ptidx = prv_get_port_flat_index(graph, 
+                port->variant.input.link);
+        }
+    }
+
+    if (data_container_has_value(&port->value))
+    {
+        unsigned char* data_bin;
+        uint64_t data_len;
+
+        const char* data_type = port->value.info->name_hash.name;
+
+        daggle_data_serialize(graph->instance, data_type,
+            port->value.data, &data_bin, &data_len);
+
+        prv_append_data_buffer(data_buffer, string_buffer, data_type, 
+            data_bin, data_len, &port_entry.data_dtoff);
+    }
+
+    dynamic_array_push(port_entries, &port_entry);
+}
+
+void
+prv_node_serialize_and_push(node_t* node, graph_t* graph, 
+    dynamic_array_t* node_entries, dynamic_array_t* port_entries, 
+    dynamic_array_t* string_buffer, dynamic_array_t* data_buffer) 
+{
+    node_entry_1_t entry;
+
+    // Push node id (currently unused) into strings, store offset in node entry.
+    const char dummy_id[] = "dummy_id";
+    prv_append_string_buffer(string_buffer, dummy_id, &entry.name_stoff);
+
+    // Push node type into strings, store offset in node entry.
+    prv_append_string_buffer(string_buffer, node->info->name_hash.name, 
+        &entry.type_stoff);
+
+    // Set port-related fields.
+    entry.num_ports = node->ports.length;
+    entry.first_port_ptidx = port_entries->length;
+
+    // Push the serialized node entry into the node entries.
+    dynamic_array_push(node_entries, &entry);
+
+    // Serialize and push the ports of the node.
+    for (int j = 0; j < node->ports.length; j++) {
+        port_t* port_element = dynamic_array_at(&node->ports, j);
+        prv_port_serialize_and_push(port_element, graph, port_entries, 
+            string_buffer, data_buffer);
+    }
+}
+
 daggle_error_code_t
 daggle_graph_serialize(daggle_graph_h handle, unsigned char** out_bin, 
     uint64_t* out_len)
@@ -243,81 +317,21 @@ daggle_graph_serialize(daggle_graph_h handle, unsigned char** out_bin,
     graph_t* graph = handle;
 
     dynamic_array_t node_entries;
-    dynamic_array_init(graph->nodes.length, sizeof(node_entry_1_t), 
-        &node_entries);
-
     dynamic_array_t port_entries;
-    dynamic_array_init(0, sizeof(node_entry_1_t), &port_entries);
-
     dynamic_array_t string_buffer;
-    dynamic_array_init(0, sizeof(char), &string_buffer);
-
     dynamic_array_t data_buffer;
+
+    const uint64_t num_nodes = graph->nodes.length;
+
+    dynamic_array_init(num_nodes, sizeof(node_entry_1_t), &node_entries);
+    dynamic_array_init(0, sizeof(node_entry_1_t), &port_entries);
+    dynamic_array_init(0, sizeof(char), &string_buffer);
     dynamic_array_init(0, sizeof(unsigned char), &data_buffer);
 
-    for (int i = 0; i < graph->nodes.length; i++) {
+    for (int i = 0; i < num_nodes; i++) {
         node_t** node_element = dynamic_array_at(&graph->nodes, i);
-        node_t* node = *node_element;
-
-        node_entry_1_t entry;
-
-        // Push dummy node id
-        const char dummy[] = "dummy_id";
-        prv_append_string_buffer(&string_buffer, dummy, &entry.name_stoff);
-
-        // Push node type
-        prv_append_string_buffer(
-            &string_buffer, node->info->name_hash.name, &entry.type_stoff);
-
-        entry.num_ports = node->ports.length;
-        entry.first_port_ptidx = port_entries.length;
-
-        dynamic_array_push(&node_entries, &entry);
-
-        for (int j = 0; j < node->ports.length; j++) {
-            port_t* port = dynamic_array_at(&node->ports, j);
-
-            port_entry_1_t port_entry;
-
-            // Initialize port entry
-            port_entry.name_stoff = 0;
-            port_entry.edge_ptidx = UINT64_MAX; // Unset is MAX
-            port_entry.data_dtoff = UINT64_MAX;
-
-            // Write port name to string buffer
-            // and store character offset to name_stoff.
-            prv_append_string_buffer(
-                &string_buffer, port->name_hash.name, &port_entry.name_stoff);
-
-            port_entry.port_variant = prv_port_variant_daggle_to_1(port->port_variant);
-
-            // For input ports, set the input variant, and link if it has one
-            if (port->port_variant == DAGGLE_PORT_INPUT) {
-                port_entry.port_specific.input = prv_input_variant_daggle_to_1(
-                    port->variant.input.variant);
-
-                if (port->variant.input.link) {
-                    port_entry.edge_ptidx = prv_get_port_flat_index(graph, 
-                        port->variant.input.link);
-                }
-            }
-
-            if (data_container_has_value(&port->value))
-            {
-                unsigned char* data_bin;
-                uint64_t data_len;
-
-                const char* data_type = port->value.info->name_hash.name;
-
-                daggle_data_serialize(graph->instance, data_type,
-                                      port->value.data, &data_bin, &data_len);
-
-                prv_append_data_buffer(&data_buffer, &string_buffer, data_type, 
-                    data_bin, data_len, &port_entry.data_dtoff);
-            }
-
-            dynamic_array_push(&port_entries, &port_entry);
-        }
+        prv_node_serialize_and_push(*node_element, graph, &node_entries, 
+            &port_entries, &string_buffer, &data_buffer);
     }
 
     prv_write_arrays_to_bin(&node_entries, &port_entries, &string_buffer,
