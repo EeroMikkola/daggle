@@ -1,0 +1,12 @@
+[plugin]
+id=core
+version=1
+
+[dependencies]
+daggle=1
+
+[linux]
+bin=libcore.so
+
+[osx]
+bin=libcore.dylib

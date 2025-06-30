@@ -1,0 +1,11 @@
+[plugin]
+id=graph
+
+[dependencies]
+daggle=1
+
+[linux]
+bin=libgraph.so
+
+[osx]
+bin=libgraph.dylib

@@ -1,0 +1,9 @@
+# Build files
+build
+
+# Cmake
+CMakeFiles
+daggle-install
+
+# VSCode
+.vscode

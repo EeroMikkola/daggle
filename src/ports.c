@@ -1,0 +1,65 @@
+#include "ports.h"
+
+#include "instance.h"
+#include "node.h"
+#include "resource_container.h"
+#include "stdlib.h"
+#include "string.h"
+#include "utility/hash.h"
+#include "utility/return_macro.h"
+
+void
+port_destroy(
+	port_t* port)
+{
+	ASSERT_PARAMETER(port);
+
+	free((char*)port->name_hash.name);
+
+	if(port->port_variant != DAGGLE_PORT_PARAMETER) {
+		daggle_port_disconnect(port);
+	}
+
+	if(port->port_variant == DAGGLE_PORT_OUTPUT) {
+		dynamic_array_destroy(&port->variant.output.links);
+	}
+
+	data_container_destroy(&port->value);
+}
+
+void
+port_init(
+	daggle_node_h node,
+	const char* port_name,
+	data_container_t data,
+	daggle_port_variant_t variant,
+	port_t* port)
+{
+	ASSERT_PARAMETER(node);
+	ASSERT_PARAMETER(port_name);
+	ASSERT_PARAMETER(port);
+
+	name_with_hash_t nh
+		= { .name = strdup(port_name), .hash = fnv1a_32(port_name) };
+
+	port->name_hash = nh;
+	port->owner = node;
+	port->port_variant = variant;
+	port->value = data;
+
+	if(variant == DAGGLE_PORT_INPUT) {
+		port->variant.input.link = NULL;
+	} else if(variant == DAGGLE_PORT_OUTPUT) {
+		daggle_error_code_t error = dynamic_array_init(
+			0, sizeof(port_t*), &port->variant.output.links);
+
+		if(error != DAGGLE_SUCCESS) {
+			LOG_FMT(LOG_TAG_ERROR,
+				"%s while initializing output port link array",
+				daggle_error_code_strings[error]);
+			LOG(LOG_TAG_WARN,
+				"This function does not return an error code; the above error "
+				"may be catastrophic");
+		}
+	}
+}
