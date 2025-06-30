@@ -6,10 +6,11 @@
 #include "ports.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "string.h"
 #include "utility/return_macro.h"
 
 port_variant_1_t
-prv_daggle_to_port_variant_1(daggle_port_variant_t variant)
+prv_port_variant_daggle_to_1(daggle_port_variant_t variant)
 {
     switch (variant)
     {
@@ -41,7 +42,7 @@ prv_port_variant_1_to_daggle(port_variant_1_t variant)
 }
 
 input_variant_1_t
-prv_daggle_to_input_variant_1(daggle_input_variant_t variant)
+prv_input_variant_daggle_to_1(daggle_input_variant_t variant)
 {
     switch (variant)
     {
@@ -195,16 +196,51 @@ void prv_write_arrays_to_bin(
 void prv_append_string_buffer(
     dynamic_array_t* string_buffer, const char* source, uint64_t* out_index)
 {
-    char str_term = '\0';
-    *out_index = string_buffer->length;
+    // Get the start offset of the string.
+    uint64_t start_offset = string_buffer->length;
 
-    for (const char* c = source; *c != '\0'; ++c)
-    {
-        char character = *c;
-        dynamic_array_push(string_buffer, &character);
-    }
+    // Get the length of the source string plus its null terminator.
+    uint64_t string_length = strlen(source) + 1;
 
-    dynamic_array_push(string_buffer, &str_term);
+    // Add empty space the size of the string into the string buffer.
+    dynamic_array_resize(string_buffer, string_buffer->length + string_length);
+    string_buffer->length = string_buffer->capacity;
+
+    // Copy the string into the string buffer.
+    memcpy(string_buffer->data + start_offset, source, string_length);
+
+    // Return the start offset of the string.
+    *out_index = start_offset;
+}
+
+void prv_append_data_buffer(
+    dynamic_array_t* data_buffer, dynamic_array_t* string_buffer, const char* data_type, unsigned char* data_bin,
+    uint64_t data_len, uint64_t* out_dtoff)
+{
+    // Write data type to string buffer.
+    uint64_t type_stoff = string_buffer->length;
+    prv_append_string_buffer(string_buffer, data_type, &type_stoff);
+
+    // Get the start offset of the data entry.
+    uint64_t start_offset = data_buffer->length;
+
+    // Calculate the size of the data entry struct.
+    uint64_t data_entry_size = sizeof(data_entry_1_t) + data_len;
+
+    // Add empty space the size of the data entry into the data buffer.
+    dynamic_array_resize(data_buffer, data_buffer->length + data_entry_size);
+    data_buffer->length = data_buffer->capacity;
+
+    // Get the location of the data entry.
+    data_entry_1_t* entry = data_buffer->data + start_offset;
+
+    // Copy data to the data entry fields
+    memcpy(&entry->type_stoff, &type_stoff, sizeof(entry->type_stoff));
+    memcpy(&entry->size, &data_len, sizeof(entry->size));
+    memcpy(&entry->bytes, data_bin, data_len);
+
+    // Return the offset to the data entry.
+    *out_dtoff = start_offset;
 }
 
 daggle_error_code_t
@@ -233,19 +269,18 @@ daggle_graph_serialize(
 
         node_entry_1_t entry;
 
-        char str_term = '\0';
+        // Push dummy node id
+        const char dummy[] = "dummy_id";
+        prv_append_string_buffer(&string_buffer, dummy, &entry.name_stoff);
 
-        // Push dummy string ID
-        entry.name_stoff = string_buffer.length;
-        char dummy = 'n';
-        dynamic_array_push(&string_buffer, &dummy);
-        dynamic_array_push(&string_buffer, &str_term);
-
+        // Push node type
         prv_append_string_buffer(
             &string_buffer, node->info->name_hash.name, &entry.type_stoff);
 
         entry.num_ports = node->ports.length;
         entry.first_port_ptidx = port_entries.length;
+
+        dynamic_array_push(&node_entries, &entry);
 
         for (int j = 0; j < node->ports.length; j++)
         {
@@ -263,12 +298,12 @@ daggle_graph_serialize(
             prv_append_string_buffer(
                 &string_buffer, port->name_hash.name, &port_entry.name_stoff);
 
-            port_entry.port_variant = prv_daggle_to_port_variant_1(port->port_variant);
+            port_entry.port_variant = prv_port_variant_daggle_to_1(port->port_variant);
 
             // For input ports, set the input variant, and link if it has one
             if (port->port_variant == DAGGLE_PORT_INPUT)
             {
-                port_entry.port_specific.input = prv_daggle_to_input_variant_1(port->variant.input.variant);
+                port_entry.port_specific.input = prv_input_variant_daggle_to_1(port->variant.input.variant);
 
                 if (port->variant.input.link)
                 {
@@ -282,45 +317,18 @@ daggle_graph_serialize(
                 unsigned char* data_bin;
                 uint64_t data_len;
 
-                daggle_data_serialize(graph->instance,
-                                      port->value.info->name_hash.name,
-                                      port->value.data,
-                                      &data_bin,
-                                      &data_len);
+                const char* data_type = port->value.info->name_hash.name;
 
-                // TODO: Instead of copying the type string, a common pool of
-                // type strings could be used.
-                uint64_t type_stoff = string_buffer.length;
-                prv_append_string_buffer(&string_buffer,
-                                         port->value.info->name_hash.name,
-                                         &type_stoff);
+                daggle_data_serialize(graph->instance, data_type,
+                                      port->value.data, &data_bin, &data_len);
 
-                uint64_t data_entry_size = sizeof(uint64_t) + sizeof(uint64_t) + data_len;
-
-                // Reserve additional space for the data entry
-                dynamic_array_resize(
-                    &data_buffer, data_buffer.length + data_entry_size);
-
-                // Copy data to the data buffer
-                memcpy(data_buffer.data + data_buffer.length,
-                       &type_stoff,
-                       sizeof(uint64_t));
-                memcpy(data_buffer.data + data_buffer.length + sizeof(uint64_t),
-                       &data_len,
-                       sizeof(uint64_t));
-                memcpy(data_buffer.data + data_buffer.length + sizeof(uint64_t) + sizeof(uint64_t),
-                       data_bin,
-                       data_len);
-
-                port_entry.data_dtoff = data_buffer.length;
-
-                data_buffer.length += data_entry_size;
+                prv_append_data_buffer(&data_buffer, &string_buffer, 
+                    data_type, data_bin, data_len, 
+                    &port_entry.data_dtoff);
             }
 
             dynamic_array_push(&port_entries, &port_entry);
         }
-
-        dynamic_array_push(&node_entries, &entry);
     }
 
     prv_write_arrays_to_bin(&node_entries,
@@ -363,7 +371,7 @@ prv_graph_deserialize_1(
     graph_t* graph;
     daggle_graph_create(instance, (daggle_graph_h)&graph);
 
-    // printf("Version: %zu\nNodes: %zu\nPorts: %zu\n", *version, *num_nodes, *num_ports);
+    printf("Version: %zu\nNodes: %zu\nPorts: %zu\n", *version, *num_nodes, *num_ports);
 
     for (int i = 0; i < *num_nodes; i++)
     {
@@ -372,7 +380,7 @@ prv_graph_deserialize_1(
         const char* node_name = strings + node_entry->name_stoff;
         const char* node_type = strings + node_entry->type_stoff;
 
-        // printf("Node: %s (%s)\n", node_name, node_type);
+        printf("Node: %s (%s)\n", node_name, node_type);
 
         // Construct node
         node_info_t* info;
@@ -398,11 +406,11 @@ prv_graph_deserialize_1(
 
             const char* port_name = strings + port_entry->name_stoff;
 
-            // printf("- Port: %s\n", port_name);
-            // printf("  - Index: port[%llu]\n", node_entry->first_port_ptidx + j);
+            printf("- Port: %s\n", port_name);
+            printf("  - Index: port[%llu]\n", node_entry->first_port_ptidx + j);
 
             const char* pvarnames[] = {"INPUT", "OUTPUT", "PARAMETER"};
-            // printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
+            printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
 
             daggle_port_variant_t variant;
             variant = prv_port_variant_1_to_daggle(port_entry->port_variant);
@@ -417,7 +425,7 @@ prv_graph_deserialize_1(
 
                 const char* data_type = strings + data_entry->type_stoff;
 
-                // printf("  - Data: %s (%zuB)\n", data_type, data_entry->size);
+                printf("  - Data: %s (%zuB)\n", data_type, data_entry->size);
 
                 void* deserialized_data = NULL;
                 daggle_data_deserialize(instance,
@@ -439,11 +447,11 @@ prv_graph_deserialize_1(
             if (port_entry->port_variant == INPUT)
             {
                 const char* ivarnames[] = {"IMMUTABLE_REFERENCE", "IMMUTABLE_COPY", "MUTABLE_REFERENCE", "MUTABLE_COPY"};
-                // printf("  - Input: %s\n", ivarnames[port_entry->port_specific.input]);
+                printf("  - Input: %s\n", ivarnames[port_entry->port_specific.input]);
 
                 if (port_entry->edge_ptidx != UINT64_MAX)
                 {
-                    // printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
+                    printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
                 }
 
                 daggle_input_variant_t input_variant;
