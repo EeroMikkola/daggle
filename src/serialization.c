@@ -345,6 +345,23 @@ daggle_graph_serialize(daggle_graph_h handle, unsigned char** out_bin,
     RETURN_STATUS(DAGGLE_SUCCESS);
 }
 
+typedef struct {
+    uint64_t node_index;
+    uint64_t port_index;
+} prv_u64_tuple_t;
+
+port_t*
+prv_get_port_with_global_index(graph_t* graph, prv_u64_tuple_t* port_index_map, uint64_t index){
+    prv_u64_tuple_t* indices = port_index_map + index;
+
+    node_t* node = *((node_t**)dynamic_array_at( &graph->nodes, 
+        indices->node_index));
+
+    port_t* port = dynamic_array_at(&node->ports, indices->port_index);
+
+    return port;
+}
+
 daggle_error_code_t
 prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
     daggle_graph_h* out_graph) 
@@ -361,6 +378,10 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
     const port_entry_1_t* ports = (void*)nodes + sizeof(node_entry_1_t) * num_nodes;
     char* strings = (void*)ports + sizeof(port_entry_1_t) * num_ports;
     unsigned char* datas = (void*)strings + sizeof(char) * text_len;
+
+    // Create port index map to convert global port index to the node index 
+    // and local port index.
+    prv_u64_tuple_t* port_index_map = malloc(sizeof(prv_u64_tuple_t) * num_ports);
 
     graph_t* graph;
     daggle_graph_create(instance, (daggle_graph_h)&graph);
@@ -394,12 +415,18 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
 
         for (int j = 0; j < node_entry->num_ports; j++) {
             port_t* port_element = dynamic_array_at(&node->ports, j);
-            const port_entry_1_t* port_entry = ports + node_entry->first_port_ptidx + j;
 
+            uint64_t port_global_index = node_entry->first_port_ptidx + j;
+
+            // Store the node and local port indices of this port.
+            port_index_map[port_global_index].node_index = i;
+            port_index_map[port_global_index].port_index = j;
+            
+            const port_entry_1_t* port_entry = ports + port_global_index;
             const char* port_name = strings + port_entry->name_stoff;
 
             printf("- Port: %s\n", port_name);
-            printf("  - Index: port[%llu]\n", node_entry->first_port_ptidx + j);
+            printf("  - Index: port[%llu]\n", port_global_index);
 
             const char* pvarnames[] = {"INPUT", "OUTPUT", "PARAMETER"};
             printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
@@ -452,39 +479,36 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
         dynamic_array_push(&graph->nodes, &node);
     }
 
-    for (int i = 0; i < num_nodes; i++) {
-        node_t** node_element = dynamic_array_at(&graph->nodes, i);
-        node_t* node = *node_element;
-        const node_entry_1_t* node_entry = nodes + i;
+    for (int i = 0; i < num_ports; i++) {
+        const port_entry_1_t* port_entry = ports + i;
 
-        for (int j = 0; j < node_entry->num_ports; j++) {
-            port_t* port_element = dynamic_array_at(&node->ports, j);
-            const port_entry_1_t* port_entry = ports + node_entry->first_port_ptidx + j;
-
-            if (port_entry->edge_ptidx != UINT64_MAX) {
-                uint64_t node_idx = 0;
-                uint64_t port_idx = 0;
-
-                if (num_ports < port_entry->edge_ptidx) {
-                    LOG(LOG_TAG_ERROR, "Connected port not found");
-                }
-
-                prv_get_flat_port_indices(port_entry->edge_ptidx, num_nodes,
-                    nodes, &node_idx, &port_idx);
-
-                node_t* source_node = *((node_t**)dynamic_array_at(
-                    &graph->nodes, node_idx));
-                port_t* source_port = dynamic_array_at(&source_node->ports, 
-                    port_idx);
-
-                if (source_port->port_variant != DAGGLE_PORT_OUTPUT) {
-                    LOG(LOG_TAG_ERROR, "Invalid connection");
-                }
-
-                daggle_port_connect(port_element, source_port);
-            }
+        // Continue to next port if this one is not linked.
+        if (port_entry->edge_ptidx == UINT64_MAX) {
+            continue;
         }
+
+        // Get target port.
+        port_t* target_port = prv_get_port_with_global_index(graph, 
+            port_index_map, i);
+
+        // Ensure the target port is input.
+        if (target_port->port_variant != DAGGLE_PORT_INPUT) {
+            RETURN_STATUS(DAGGLE_ERROR_PARSE);
+        }
+
+        // Get the source port.
+        port_t* source_port = prv_get_port_with_global_index(graph, 
+            port_index_map, port_entry->edge_ptidx);
+
+        // Ensure the source port is output.
+        if (source_port->port_variant != DAGGLE_PORT_OUTPUT) {
+            RETURN_STATUS(DAGGLE_ERROR_PARSE);
+        }
+
+        daggle_port_connect(source_port, target_port);
     }
+
+    free(port_index_map);
 
     for (int i = 0; i < num_nodes; i++) {
         node_t** node_element = dynamic_array_at(&graph->nodes, i);
