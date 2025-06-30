@@ -8,10 +8,77 @@
 #include "stdlib.h"
 #include "utility/return_macro.h"
 
+port_variant_1_t
+prv_daggle_to_port_variant_1(daggle_port_variant_t variant)
+{
+    switch (variant)
+    {
+    default:
+        LOG_FMT(LOG_TAG_ERROR, "Unknown port variant %u", variant);
+    case DAGGLE_PORT_INPUT:
+        return INPUT;
+    case DAGGLE_PORT_OUTPUT:
+        return OUTPUT;
+    case DAGGLE_PORT_PARAMETER:
+        return PARAMETER;
+    }
+}
+
+daggle_port_variant_t
+prv_port_variant_1_to_daggle(port_variant_1_t variant)
+{
+    switch (variant)
+    {
+    default:
+        LOG_FMT(LOG_TAG_ERROR, "Unknown variant %u", variant);
+    case INPUT:
+        return DAGGLE_PORT_INPUT;
+    case OUTPUT:
+        return DAGGLE_PORT_OUTPUT;
+    case PARAMETER:
+        return DAGGLE_PORT_PARAMETER;
+    }
+}
+
+input_variant_1_t
+prv_daggle_to_input_variant_1(daggle_input_variant_t variant)
+{
+    switch (variant)
+    {
+    default:
+        LOG_FMT(LOG_TAG_ERROR, "Unknown input variant %u", variant);
+    case DAGGLE_INPUT_IMMUTABLE_REFERENCE:
+        return IMMUTABLE_REFERENCE;
+    case DAGGLE_INPUT_IMMUTABLE_COPY:
+        return IMMUTABLE_COPY;
+    case DAGGLE_INPUT_MUTABLE_REFERENCE:
+        return MUTABLE_REFERENCE;
+    case DAGGLE_INPUT_MUTABLE_COPY:
+        return MUTABLE_COPY;
+    }
+}
+
+daggle_input_variant_t
+prv_input_variant_1_to_daggle(input_variant_1_t variant)
+{
+    switch (variant)
+    {
+    default:
+        LOG_FMT(LOG_TAG_ERROR, "Unknown input variant %u", variant);
+    case IMMUTABLE_REFERENCE:
+        return DAGGLE_INPUT_IMMUTABLE_REFERENCE;
+    case IMMUTABLE_COPY:
+        return DAGGLE_INPUT_IMMUTABLE_COPY;
+    case MUTABLE_REFERENCE:
+        return DAGGLE_INPUT_MUTABLE_REFERENCE;
+    case MUTABLE_COPY:
+        return DAGGLE_INPUT_MUTABLE_COPY;
+    }
+}
+
 // Find the flattened index of a port.
 uint64_t
-prv_get_port_flat_index(
-    const graph_t* graph, const port_t* port)
+prv_get_port_flat_index(const graph_t* graph, const port_t* port)
 {
     uint64_t counter = 0;
 
@@ -186,49 +253,28 @@ daggle_graph_serialize(
 
             port_entry_1_t port_entry;
 
+            // Initialize port entry
             port_entry.name_stoff = 0;
             port_entry.edge_ptidx = UINT64_MAX; // Unset is MAX
             port_entry.data_dtoff = UINT64_MAX;
 
+            // Write port name to string buffer
+            // and store character offset to name_stoff.
             prv_append_string_buffer(
                 &string_buffer, port->name_hash.name, &port_entry.name_stoff);
 
-            switch (port->port_variant)
-            {
-            case DAGGLE_PORT_INPUT:
-                port_entry.port_variant = INPUT;
+            port_entry.port_variant = prv_daggle_to_port_variant_1(port->port_variant);
 
-                switch (port->variant.input.variant)
-                {
-                default:
-                case DAGGLE_INPUT_IMMUTABLE_REFERENCE:
-                    port_entry.port_specific.input = IMMUTABLE_REFERENCE;
-                    break;
-                case DAGGLE_INPUT_IMMUTABLE_COPY:
-                    port_entry.port_specific.input = IMMUTABLE_COPY;
-                    break;
-                case DAGGLE_INPUT_MUTABLE_REFERENCE:
-                    port_entry.port_specific.input = MUTABLE_REFERENCE;
-                    break;
-                case DAGGLE_INPUT_MUTABLE_COPY:
-                    port_entry.port_specific.input = MUTABLE_COPY;
-                    break;
-                }
+            // For input ports, set the input variant, and link if it has one
+            if (port->port_variant == DAGGLE_PORT_INPUT)
+            {
+                port_entry.port_specific.input = prv_daggle_to_input_variant_1(port->variant.input.variant);
 
                 if (port->variant.input.link)
                 {
                     port_entry.edge_ptidx = prv_get_port_flat_index(
                         graph, port->variant.input.link);
                 }
-                break;
-            case DAGGLE_PORT_OUTPUT:
-                port_entry.port_variant = OUTPUT;
-                break;
-            case DAGGLE_PORT_PARAMETER:
-                port_entry.port_variant = PARAMETER;
-                break;
-            default:
-                break;
             }
 
             if (data_container_has_value(&port->value))
@@ -317,8 +363,7 @@ prv_graph_deserialize_1(
     graph_t* graph;
     daggle_graph_create(instance, (daggle_graph_h)&graph);
 
-    // printf("Version: %zu\nNodes: %zu\nPorts: %zu\n", *version, *num_nodes,
-    // *num_ports);
+    // printf("Version: %zu\nNodes: %zu\nPorts: %zu\n", *version, *num_nodes, *num_ports);
 
     for (int i = 0; i < *num_nodes; i++)
     {
@@ -354,24 +399,13 @@ prv_graph_deserialize_1(
             const char* port_name = strings + port_entry->name_stoff;
 
             // printf("- Port: %s\n", port_name);
+            // printf("  - Index: port[%llu]\n", node_entry->first_port_ptidx + j);
+
+            const char* pvarnames[] = {"INPUT", "OUTPUT", "PARAMETER"};
+            // printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
 
             daggle_port_variant_t variant;
-
-            switch (port_entry->port_variant)
-            {
-            case INPUT:
-                port_element->port_variant = DAGGLE_PORT_INPUT;
-                break;
-            case OUTPUT:
-                port_element->port_variant = DAGGLE_PORT_OUTPUT;
-                break;
-            case PARAMETER:
-                port_element->port_variant = DAGGLE_PORT_PARAMETER;
-                break;
-
-            default:
-                RETURN_STATUS(DAGGLE_ERROR_PARSE);
-            }
+            variant = prv_port_variant_1_to_daggle(port_entry->port_variant);
 
             data_container_t data;
             data_container_init(instance, &data);
@@ -379,19 +413,20 @@ prv_graph_deserialize_1(
             // If port has data
             if (port_entry->data_dtoff != UINT64_MAX)
             {
-                uint64_t* data_type_stoff = (void*)datas + port_entry->data_dtoff;
-                uint64_t* data_size = (void*)data_type_stoff + sizeof(uint64_t);
-                unsigned char* data_bytes = (void*)data_size + sizeof(uint64_t);
+                data_entry_1_t* data_entry = (void*)datas + port_entry->data_dtoff;
+                // uint64_t* data_type_stoff = (void*)datas + port_entry->data_dtoff;
+                // uint64_t* data_size = (void*)data_type_stoff + sizeof(uint64_t);
+                // unsigned char* data_bytes = (void*)data_size + sizeof(uint64_t);
 
-                const char* data_type = strings + *data_type_stoff;
+                const char* data_type = strings + data_entry->type_stoff;
 
-                // printf("  - Data: %s (%zuB)\n", data_type, *data_size);
+                // printf("  - Data: %s (%zuB)\n", data_type, data_entry->size);
 
                 void* deserialized_data = NULL;
                 daggle_data_deserialize(instance,
                                         data_type,
-                                        data_bytes,
-                                        *data_size,
+                                        data_entry->bytes,
+                                        data_entry->size,
                                         &deserialized_data);
 
                 type_info_t* typeinfo;
@@ -406,22 +441,17 @@ prv_graph_deserialize_1(
             // Deserialize input port variant
             if (port_entry->port_variant == INPUT)
             {
-				switch (port_entry->port_specific.input)
+                const char* ivarnames[] = {"IMMUTABLE_REFERENCE", "IMMUTABLE_COPY", "MUTABLE_REFERENCE", "MUTABLE_COPY"};
+                // printf("  - Input: %s\n", ivarnames[port_entry->port_specific.input]);
+
+                if (port_entry->edge_ptidx != UINT64_MAX)
                 {
-                default:
-                case IMMUTABLE_REFERENCE:
-                    port_element->variant.input.variant = DAGGLE_INPUT_IMMUTABLE_REFERENCE;
-                    break;
-                case IMMUTABLE_COPY:
-                    port_element->variant.input.variant = DAGGLE_INPUT_IMMUTABLE_COPY;
-                    break;
-                case MUTABLE_REFERENCE:
-                    port_element->variant.input.variant = DAGGLE_INPUT_MUTABLE_REFERENCE;
-                    break;
-                case MUTABLE_COPY:
-                    port_element->variant.input.variant = DAGGLE_INPUT_MUTABLE_COPY;
-                    break;
+                    // printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
                 }
+
+                daggle_input_variant_t input_variant;
+                input_variant = prv_input_variant_1_to_daggle(port_entry->port_specific.input);
+                port_element->variant.input.variant = input_variant;
             }
         }
 
@@ -436,6 +466,9 @@ prv_graph_deserialize_1(
 
         for (int j = 0; j < node_entry->num_ports; j++)
         {
+            port_t* p1 = dynamic_array_at(&node->ports, 0);
+            port_t* p2 = dynamic_array_at(&node->ports, 1);
+            port_t* p3 = dynamic_array_at(&node->ports, 2);
             port_t* port_element = dynamic_array_at(&node->ports, j);
             const port_entry_1_t* port_entry = ports + node_entry->first_port_ptidx + j;
 

@@ -70,6 +70,15 @@ main(void)
 	daggle_graph_h generated;
 	generate_graph(instance, &generated);
 
+	unsigned char* bin;
+	uint64_t size;
+	daggle_graph_serialize(generated, &bin, &size);
+
+	daggle_graph_free(generated);
+	generated = NULL;
+
+	daggle_graph_deserialize(instance, bin, &generated);
+
 	daggle_port_set_value(graph_port, "graph_object", generated);
 
 	daggle_port_h input_value;

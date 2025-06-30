@@ -10,11 +10,11 @@
 //     bytes: byte[size]
 // }
 
-//typedef struct data_entry_1_s {
-//uint64_t type_stoff;
-//	uint64_t size;
-//	unsigned char bytes[/*size*/];
-//} data_entry_1_t; // size = 2*u64+size
+typedef struct data_entry_1_s {
+	uint64_t type_stoff;
+	uint64_t size;
+	unsigned char bytes[/*size*/];
+} data_entry_1_t; // size = 2*u64+size
 
 // strings like: "first\0second\0third\0", access by Nth character
 
@@ -26,7 +26,7 @@
 // strings_len: u64
 // strings: char[strings_len]
 // datas_len: u64
-// datas: byte[datas_len], (bytes encode data_entry[])
+// datas: byte[datas_len], (bytes encode data_entry_1_t[])
 
 // Use versioned structs for backwards compatibility.
 
