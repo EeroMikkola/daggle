@@ -151,11 +151,7 @@ void prv_write_arrays_to_bin(
 {
     uint64_t total_size = 0;
 
-    total_size += sizeof(uint64_t);
-    total_size += sizeof(uint64_t);
-    total_size += sizeof(uint64_t);
-    total_size += sizeof(uint64_t);
-    total_size += sizeof(uint64_t);
+    total_size += sizeof(graph_1_t);
     total_size += node_entries->stride * node_entries->length;
     total_size += node_entries->stride * port_entries->length;
     total_size += string_buffer->stride * string_buffer->length;
@@ -164,13 +160,15 @@ void prv_write_arrays_to_bin(
     unsigned char* bin = malloc(total_size);
     uint64_t offset = 0;
 
-    uint64_t version = 1;
-    prv_offset_write(bin, &version, sizeof(uint64_t), &offset);
+    graph_1_t graph_bin = {
+        .version = 1,
+        .num_nodes = node_entries->length,
+        .num_ports = port_entries->length,
+        .text_len = string_buffer->length,
+        .data_len = data_buffer->length
+    };
 
-    prv_offset_write(bin, &node_entries->length, sizeof(uint64_t), &offset);
-    prv_offset_write(bin, &port_entries->length, sizeof(uint64_t), &offset);
-    prv_offset_write(bin, &string_buffer->length, sizeof(uint64_t), &offset);
-    prv_offset_write(bin, &data_buffer->length, sizeof(uint64_t), &offset);
+    prv_offset_write(bin, &graph_bin, sizeof(graph_1_t), &offset);
 
     prv_offset_write(bin, node_entries->data, 
         node_entries->stride * node_entries->length, &offset);
@@ -239,8 +237,8 @@ void prv_append_data_buffer(
 }
 
 daggle_error_code_t
-daggle_graph_serialize(
-    daggle_graph_h handle, unsigned char** out_bin, uint64_t* out_len)
+daggle_graph_serialize(daggle_graph_h handle, unsigned char** out_bin, 
+    uint64_t* out_len)
 {
     graph_t* graph = handle;
 
@@ -257,8 +255,7 @@ daggle_graph_serialize(
     dynamic_array_t data_buffer;
     dynamic_array_init(0, sizeof(unsigned char), &data_buffer);
 
-    for (int i = 0; i < graph->nodes.length; i++)
-    {
+    for (int i = 0; i < graph->nodes.length; i++) {
         node_t** node_element = dynamic_array_at(&graph->nodes, i);
         node_t* node = *node_element;
 
@@ -277,8 +274,7 @@ daggle_graph_serialize(
 
         dynamic_array_push(&node_entries, &entry);
 
-        for (int j = 0; j < node->ports.length; j++)
-        {
+        for (int j = 0; j < node->ports.length; j++) {
             port_t* port = dynamic_array_at(&node->ports, j);
 
             port_entry_1_t port_entry;
@@ -296,13 +292,11 @@ daggle_graph_serialize(
             port_entry.port_variant = prv_port_variant_daggle_to_1(port->port_variant);
 
             // For input ports, set the input variant, and link if it has one
-            if (port->port_variant == DAGGLE_PORT_INPUT)
-            {
+            if (port->port_variant == DAGGLE_PORT_INPUT) {
                 port_entry.port_specific.input = prv_input_variant_daggle_to_1(
                     port->variant.input.variant);
 
-                if (port->variant.input.link)
-                {
+                if (port->variant.input.link) {
                     port_entry.edge_ptidx = prv_get_port_flat_index(graph, 
                         port->variant.input.link);
                 }
@@ -338,34 +332,28 @@ daggle_graph_serialize(
 }
 
 daggle_error_code_t
-prv_graph_deserialize_1(
-    daggle_instance_h instance,
-    const unsigned char* bin,
-    daggle_graph_h* out_graph)
+prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
+    daggle_graph_h* out_graph) 
 {
-    const uint64_t* version = (void*)bin;
+    const graph_1_t* graph_bin = (void*)bin;
 
-    ASSERT_TRUE(*version == 1, "Wrong graph version");
+    const uint64_t version = graph_bin->version;
+    const uint64_t num_nodes = graph_bin->num_nodes;
+    const uint64_t num_ports = graph_bin->num_ports;
+    const uint64_t text_len = graph_bin->text_len;
+    const uint64_t data_len = graph_bin->data_len;
 
-    uint64_t* nums = (void*)version + sizeof(uint64_t);
-
-    const uint64_t num_nodes = nums[0];
-    const uint64_t num_ports = nums[1];
-    const uint64_t strings_len = nums[2];
-    const uint64_t datas_len = nums[3];
-
-    const node_entry_1_t* nodes = (void*)nums + 4 * sizeof(uint64_t); 
+    const node_entry_1_t* nodes = (void*)&graph_bin->bytes; 
     const port_entry_1_t* ports = (void*)nodes + sizeof(node_entry_1_t) * num_nodes;
     char* strings = (void*)ports + sizeof(port_entry_1_t) * num_ports;
-    unsigned char* datas = (void*)strings + sizeof(char) * strings_len;
+    unsigned char* datas = (void*)strings + sizeof(char) * text_len;
 
     graph_t* graph;
     daggle_graph_create(instance, (daggle_graph_h)&graph);
 
-    printf("Version: %llu\nNodes: %llu\nPorts: %llu\n", *version, num_nodes, num_ports);
+    printf("Version: %llu\nNodes: %llu\nPorts: %llu\n", version, num_nodes, num_ports);
 
-    for (int i = 0; i < num_nodes; i++)
-    {
+    for (int i = 0; i < num_nodes; i++) {
         const node_entry_1_t* node_entry = nodes + i;
 
         const char* node_name = strings + node_entry->name_stoff;
@@ -390,8 +378,7 @@ prv_graph_deserialize_1(
         dynamic_array_init(node_entry->num_ports, sizeof(port_t), &node->ports);
         node->ports.length = node_entry->num_ports;
 
-        for (int j = 0; j < node_entry->num_ports; j++)
-        {
+        for (int j = 0; j < node_entry->num_ports; j++) {
             port_t* port_element = dynamic_array_at(&node->ports, j);
             const port_entry_1_t* port_entry = ports + node_entry->first_port_ptidx + j;
 
@@ -410,8 +397,7 @@ prv_graph_deserialize_1(
             data_container_init(instance, &data);
 
             // If port has data
-            if (port_entry->data_dtoff != UINT64_MAX)
-            {
+            if (port_entry->data_dtoff != UINT64_MAX) {
                 data_entry_1_t* data_entry = (void*)datas + port_entry->data_dtoff;
 
                 const char* data_type = strings + data_entry->type_stoff;
@@ -419,11 +405,8 @@ prv_graph_deserialize_1(
                 printf("  - Data: %s (%lluB)\n", data_type, data_entry->size);
 
                 void* deserialized_data = NULL;
-                daggle_data_deserialize(instance,
-                                        data_type,
-                                        data_entry->bytes,
-                                        data_entry->size,
-                                        &deserialized_data);
+                daggle_data_deserialize(instance, data_type, data_entry->bytes,
+                    data_entry->size, &deserialized_data);
 
                 type_info_t* typeinfo;
                 resource_container_get_type(
@@ -435,18 +418,19 @@ prv_graph_deserialize_1(
             port_init(node, port_name, data, variant, port_element);
 
             // Deserialize input port variant
-            if (port_entry->port_variant == INPUT)
-            {
-                const char* ivarnames[] = {"IMMUTABLE_REFERENCE", "IMMUTABLE_COPY", "MUTABLE_REFERENCE", "MUTABLE_COPY"};
-                printf("  - Input: %s\n", ivarnames[port_entry->port_specific.input]);
+            if (port_entry->port_variant == INPUT) {
+                const char* ivarnames[] = {"IMMUTABLE_REFERENCE", 
+                    "IMMUTABLE_COPY", "MUTABLE_REFERENCE", "MUTABLE_COPY"};
+                printf("  - Input: %s\n", 
+                    ivarnames[port_entry->port_specific.input]);
 
-                if (port_entry->edge_ptidx != UINT64_MAX)
-                {
+                if (port_entry->edge_ptidx != UINT64_MAX) {
                     printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
                 }
 
                 daggle_input_variant_t input_variant;
-                input_variant = prv_input_variant_1_to_daggle(port_entry->port_specific.input);
+                input_variant = prv_input_variant_1_to_daggle(
+                    port_entry->port_specific.input);
                 port_element->variant.input.variant = input_variant;
             }
         }
@@ -454,38 +438,32 @@ prv_graph_deserialize_1(
         dynamic_array_push(&graph->nodes, &node);
     }
 
-    for (int i = 0; i < num_nodes; i++)
-    {
+    for (int i = 0; i < num_nodes; i++) {
         node_t** node_element = dynamic_array_at(&graph->nodes, i);
         node_t* node = *node_element;
         const node_entry_1_t* node_entry = nodes + i;
 
-        for (int j = 0; j < node_entry->num_ports; j++)
-        {
+        for (int j = 0; j < node_entry->num_ports; j++) {
             port_t* port_element = dynamic_array_at(&node->ports, j);
             const port_entry_1_t* port_entry = ports + node_entry->first_port_ptidx + j;
 
-            if (port_entry->edge_ptidx != UINT64_MAX)
-            {
+            if (port_entry->edge_ptidx != UINT64_MAX) {
                 uint64_t node_idx = 0;
                 uint64_t port_idx = 0;
 
-                if (num_ports < port_entry->edge_ptidx)
-                {
+                if (num_ports < port_entry->edge_ptidx) {
                     LOG(LOG_TAG_ERROR, "Connected port not found");
                 }
 
-                prv_get_flat_port_indices(port_entry->edge_ptidx,
-                                          num_nodes,
-                                          nodes,
-                                          &node_idx,
-                                          &port_idx);
+                prv_get_flat_port_indices(port_entry->edge_ptidx, num_nodes,
+                    nodes, &node_idx, &port_idx);
 
-                node_t* source_node = *((node_t**)dynamic_array_at(&graph->nodes, node_idx));
-                port_t* source_port = dynamic_array_at(&source_node->ports, port_idx);
+                node_t* source_node = *((node_t**)dynamic_array_at(
+                    &graph->nodes, node_idx));
+                port_t* source_port = dynamic_array_at(&source_node->ports, 
+                    port_idx);
 
-                if (source_port->port_variant != DAGGLE_PORT_OUTPUT)
-                {
+                if (source_port->port_variant != DAGGLE_PORT_OUTPUT) {
                     LOG(LOG_TAG_ERROR, "Invalid connection");
                 }
 
@@ -494,8 +472,7 @@ prv_graph_deserialize_1(
         }
     }
 
-    for (int i = 0; i < num_nodes; i++)
-    {
+    for (int i = 0; i < num_nodes; i++) {
         node_t** node_element = dynamic_array_at(&graph->nodes, i);
         node_t* node = *node_element;
 
@@ -508,15 +485,12 @@ prv_graph_deserialize_1(
 }
 
 daggle_error_code_t
-daggle_graph_deserialize(
-    daggle_instance_h instance,
-    const unsigned char* bin,
+daggle_graph_deserialize(daggle_instance_h instance, const unsigned char* bin,
     daggle_graph_h* out_graph)
 {
     uint64_t* version = (void*)bin;
 
-    if (*version == 1)
-    {
+    if (*version == 1) {
         RETURN_STATUS(prv_graph_deserialize_1(instance, bin, out_graph));
     }
 

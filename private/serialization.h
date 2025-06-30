@@ -4,31 +4,28 @@
 
 #include <daggle/daggle.h>
 
-// data_entry {
-//     type_stoff: u64 (reuse typename strings)
-//     size: u64
-//     bytes: byte[size]
-// }
+// Use versioned structs for backwards compatibility.
+
+typedef struct graph_1_s {
+	uint64_t version;
+	uint64_t num_nodes;
+	uint64_t num_ports;
+	uint64_t text_len;
+	uint64_t data_len;
+	unsigned char bytes[];
+} graph_1_t;
+
+// graph_1_t bytes field encodes:
+// - nodes: node_entry_1_s[num_nodes]
+// - ports: port_entry_1_s[num_ports]
+// - strings: char[text_len], (stored like "first\0second\0")
+// - datas: unsigned char[data_len], (bytes encode data_entry_1_t[])
 
 typedef struct data_entry_1_s {
 	uint64_t type_stoff;
 	uint64_t size;
 	unsigned char bytes[/*size*/];
-} data_entry_1_t; // size = 2*u64+size
-
-// strings like: "first\0second\0third\0", access by Nth character
-
-// version: u64
-// num_nodes: u64
-// num_ports: u64
-// strings_len: u64
-// datas_len: u64
-// nodes: node_entry_1_s[num_nodes]
-// ports: port_entry_1_s[num_ports]
-// strings: char[strings_len]
-// datas: byte[datas_len], (bytes encode data_entry_1_t[])
-
-// Use versioned structs for backwards compatibility.
+} data_entry_1_t;
 
 typedef struct node_entry_1_s {
 	uint64_t name_stoff;
