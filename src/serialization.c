@@ -414,9 +414,6 @@ prv_graph_deserialize_1(
             if (port_entry->data_dtoff != UINT64_MAX)
             {
                 data_entry_1_t* data_entry = (void*)datas + port_entry->data_dtoff;
-                // uint64_t* data_type_stoff = (void*)datas + port_entry->data_dtoff;
-                // uint64_t* data_size = (void*)data_type_stoff + sizeof(uint64_t);
-                // unsigned char* data_bytes = (void*)data_size + sizeof(uint64_t);
 
                 const char* data_type = strings + data_entry->type_stoff;
 
@@ -466,9 +463,6 @@ prv_graph_deserialize_1(
 
         for (int j = 0; j < node_entry->num_ports; j++)
         {
-            port_t* p1 = dynamic_array_at(&node->ports, 0);
-            port_t* p2 = dynamic_array_at(&node->ports, 1);
-            port_t* p3 = dynamic_array_at(&node->ports, 2);
             port_t* port_element = dynamic_array_at(&node->ports, j);
             const port_entry_1_t* port_entry = ports + node_entry->first_port_ptidx + j;
 
