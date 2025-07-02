@@ -5,4 +5,4 @@ abi=1
 [bin]
 win=libcore.dll
 linux=libcore.so
-osx=libcore.dylib
+mac=libcore.dylib

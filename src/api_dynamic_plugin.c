@@ -20,7 +20,7 @@
 #define LOAD_LIBRARY(path) dlopen(path, RTLD_LAZY)
 #define GET_PROC_ADDRESS(handle, func) dlsym(handle, func)
 #define FREE_LIBRARY(handle) dlclose(handle)
-#define PLATFORM_CODE "osx"
+#define PLATFORM_CODE "mac"
 #endif
 #ifdef __linux__
 #include "dlfcn.h"
