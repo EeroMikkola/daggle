@@ -115,6 +115,23 @@ prv_dp_parse_plugin_parse_str(char* value, char** out_target)
 	(*out_target)[id_len] = '\0';
 }
 
+typedef enum parse_token_s {
+	TABLE_START,
+	TABLE_END,
+	PAIR_START,
+	PAIR_END,
+	KEY_START,
+	KEY_END,
+	VALUE_START,
+	VALUE_END,
+	STRING_START,
+	STRING_END,
+	LIT_STRING_START,
+	LIT_STRING_END,
+	ARRAY_START,
+	ARRAY_END
+} parse_token_t;
+
 daggle_error_code_t
 prv_dp_parse_plugin(const char* path,
 	daggle_plugin_source_t* out_plugin_descriptor, char** out_binary_path)
@@ -159,7 +176,7 @@ prv_dp_parse_plugin(const char* path,
 		char* boundary = strchr(line, '=');
 
 		if (!boundary) {
-			LOG(LOG_TAG_ERROR, "Could not find \'=\' on line ");
+			LOG_FMT(LOG_TAG_ERROR, "Could not find \'=\' on line \"%s\"", line);
 			RETURN_STATUS(DAGGLE_ERROR_PARSE);
 		}
 
@@ -182,21 +199,27 @@ prv_dp_parse_plugin(const char* path,
 				prv_dp_parse_plugin_parse_str(value,
 					&out_plugin_descriptor->id);
 			}
-		} else if (strcmp(category, PLATFORM_CODE) == 0) {
-			if (strcmp(key, "bin") == 0) {
-				prv_dp_parse_plugin_parse_str(value, out_binary_path);
-			}
-		} else if (strcmp(category, "dependencies") == 0) {
-			uint32_t abi = strtoul(value, NULL, 10);
-			if (strcmp(key, "daggle") == 0) {
+			if (strcmp(key, "abi") == 0) {
+				uint32_t abi = strtoul(value, NULL, 10);
 				out_plugin_descriptor->abi = abi;
 				continue;
 			}
+			if (strcmp(key, "dependencies") == 0) {
+				// parse array
+				// char* id;
+				// prv_dp_parse_plugin_parse_str(key, &id);
+				// dynamic_array_push(&dependencies, &id);
+				continue;
+			}
+		} else if (strcmp(category, "bin") == 0) {
+			if (strcmp(key, PLATFORM_CODE) == 0) {
+				char* bin_path;
+				prv_dp_parse_plugin_parse_str(value, &bin_path);
 
-			char* id;
-			prv_dp_parse_plugin_parse_str(key, &id);
+				// TODO: Validate binary path
 
-			dynamic_array_push(&dependencies, &id);
+				*out_binary_path = bin_path;
+			}
 		}
 	}
 
