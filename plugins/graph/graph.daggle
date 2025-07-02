@@ -5,5 +5,5 @@ dependencies=core
 
 [bin]
 win=libgraph.dll
-linux="libgraph.so
+linux=libgraph.so
 osx=libgraph.dylib
