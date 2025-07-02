@@ -19,13 +19,9 @@ void
 free_bytes(daggle_instance_h instance, void* data);
 
 void
-serialize_bytes(daggle_instance_h instance,
-	const void* data,
-	unsigned char** out_buf,
-	uint64_t* out_len);
+serialize_bytes(daggle_instance_h instance, const void* data,
+	unsigned char** out_buf, uint64_t* out_len);
 
 void
-deserialize_bytes(daggle_instance_h instance,
-	const unsigned char* bin,
-	uint64_t len,
-	void** target);
+deserialize_bytes(daggle_instance_h instance, const unsigned char* bin,
+	uint64_t len, void** target);

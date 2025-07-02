@@ -42,23 +42,18 @@ resource_container_destroy(resource_container_t* resource_container);
 
 daggle_error_code_t
 resource_container_register_type(resource_container_t* resource_container,
-	const char* type,
-	daggle_data_clone_fn cloner,
-	daggle_data_free_fn freer,
+	const char* type, daggle_data_clone_fn cloner, daggle_data_free_fn freer,
 	daggle_data_serialize_fn serializer,
 	daggle_data_deserialize_fn deserializer);
 
 daggle_error_code_t
 resource_container_register_node(resource_container_t* resource_container,
-	const char* type,
-	daggle_node_declare_fn declare);
+	const char* type, daggle_node_declare_fn declare);
 
 daggle_error_code_t
 resource_container_get_type(resource_container_t* resource_container,
-	const char* type,
-	type_info_t** out_info);
+	const char* type, type_info_t** out_info);
 
 daggle_error_code_t
 resource_container_get_node(resource_container_t* resource_container,
-	const char* type,
-	node_info_t** out_info);
+	const char* type, node_info_t** out_info);

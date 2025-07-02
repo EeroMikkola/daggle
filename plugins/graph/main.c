@@ -43,20 +43,16 @@ free_graph_object(daggle_instance_h instance, void* data)
 }
 
 void
-serialize_graph_object(daggle_instance_h instance,
-	const void* data,
-	unsigned char** out_buf,
-	uint64_t* out_len)
+serialize_graph_object(daggle_instance_h instance, const void* data,
+	unsigned char** out_buf, uint64_t* out_len)
 {
 	daggle_graph_h graph = (void*)data;
 	daggle_graph_serialize(graph, out_buf, out_len);
 }
 
 void
-deserialize_graph_object(daggle_instance_h instance,
-	const unsigned char* bin,
-	uint64_t len,
-	void** target)
+deserialize_graph_object(daggle_instance_h instance, const unsigned char* bin,
+	uint64_t len, void** target)
 {
 	daggle_graph_deserialize(instance, bin, (void**)target);
 }
@@ -121,8 +117,8 @@ input_bridge(daggle_node_h handle)
 	daggle_node_declare_parameter(handle, "name", bridge_name_default_value);
 	daggle_node_declare_output(handle, "value");
 
-	daggle_node_declare_input(
-		handle, "_bridge", DAGGLE_INPUT_MUTABLE_COPY, null_default_value);
+	daggle_node_declare_input(handle, "_bridge", DAGGLE_INPUT_MUTABLE_COPY,
+		null_default_value);
 
 	daggle_node_declare_task(handle, input_bridge_impl);
 }
@@ -131,8 +127,8 @@ void
 output_bridge(daggle_node_h handle)
 {
 	daggle_node_declare_parameter(handle, "name", bridge_name_default_value);
-	daggle_node_declare_input(
-		handle, "value", DAGGLE_INPUT_MUTABLE_COPY, null_default_value);
+	daggle_node_declare_input(handle, "value", DAGGLE_INPUT_MUTABLE_COPY,
+		null_default_value);
 
 	daggle_node_declare_output(handle, "_bridge");
 
@@ -185,7 +181,7 @@ graph_invoker_context_dispose(void* context)
 {
 	graph_invoker_context_t* ctx = context;
 
-	if(ctx->graph) {
+	if (ctx->graph) {
 		// graph_free(ctx->graph);
 	}
 
@@ -211,17 +207,17 @@ invoker_do_bridge(graph_invoker_context_t* ctx, bool is_write)
 
 	uint64_t counter = 0;
 	daggle_node_h node = NULL;
-	while(true) {
+	while (true) {
 		daggle_graph_get_node_by_index(graph, counter++, &node);
 
-		if(!node) {
+		if (!node) {
 			break;
 		}
 
 		const char* type = NULL;
 		daggle_node_get_type(node, &type);
 
-		if(strcmp(type, is_write ? "output_bridge" : "input_bridge") != 0) {
+		if (strcmp(type, is_write ? "output_bridge" : "input_bridge") != 0) {
 			continue;
 		}
 
@@ -235,10 +231,10 @@ invoker_do_bridge(graph_invoker_context_t* ctx, bool is_write)
 		daggle_node_get_port_by_name(node, "_bridge", &bridge_value_port);
 
 		daggle_port_h invoker_value_port;
-		daggle_node_get_port_by_name(
-			ctx->handle, name_value, &invoker_value_port);
+		daggle_node_get_port_by_name(ctx->handle, name_value,
+			&invoker_value_port);
 
-		if(is_write) {
+		if (is_write) {
 			bridge_ports(bridge_value_port, invoker_value_port);
 		} else {
 			bridge_ports(invoker_value_port, bridge_value_port);
@@ -286,10 +282,10 @@ graph_invoker_declare_graph_bridges(daggle_node_h handle, daggle_graph_h graph)
 {
 	daggle_node_h subnode = NULL;
 	uint64_t counter = 0;
-	while(true) {
+	while (true) {
 		daggle_graph_get_node_by_index(graph, counter++, &subnode);
 
-		if(!subnode) {
+		if (!subnode) {
 			break;
 		}
 
@@ -299,7 +295,7 @@ graph_invoker_declare_graph_bridges(daggle_node_h handle, daggle_graph_h graph)
 		bool is_input = strcmp(type, "input_bridge") == 0;
 		bool is_output = !is_input && strcmp(type, "output_bridge") == 0;
 
-		if(!is_input && !is_output) {
+		if (!is_input && !is_output) {
 			continue;
 		}
 
@@ -309,11 +305,9 @@ graph_invoker_declare_graph_bridges(daggle_node_h handle, daggle_graph_h graph)
 		char* name_value;
 		daggle_port_get_value(name_port, (void**)(&name_value));
 
-		if(is_input) {
-			daggle_node_declare_input(handle,
-				name_value,
-				DAGGLE_INPUT_MUTABLE_COPY,
-				null_default_value);
+		if (is_input) {
+			daggle_node_declare_input(handle, name_value,
+				DAGGLE_INPUT_MUTABLE_COPY, null_default_value);
 		} else {
 			daggle_node_declare_output(handle, name_value);
 		}
@@ -323,8 +317,8 @@ graph_invoker_declare_graph_bridges(daggle_node_h handle, daggle_graph_h graph)
 void
 graph_invoker(daggle_node_h handle)
 {
-	daggle_node_declare_parameter(
-		handle, "graph", null_default_value); // Serialized graph
+	daggle_node_declare_parameter(handle, "graph",
+		null_default_value); // Serialized graph
 
 	daggle_instance_h daggle;
 	daggle_node_get_daggle(handle, &daggle);
@@ -339,7 +333,7 @@ graph_invoker(daggle_node_h handle)
 	daggle_node_get_port_by_name(handle, "graph", &graph_port);
 	daggle_port_get_value(graph_port, &ctx->graph);
 
-	if(ctx->graph) {
+	if (ctx->graph) {
 		graph_invoker_declare_graph_bridges(handle, ctx->graph);
 		daggle_node_declare_task(handle, graph_invoker_impl);
 	}
@@ -354,10 +348,6 @@ initialize(daggle_instance_h instance)
 	daggle_plugin_register_node(instance, "output_bridge", output_bridge);
 	daggle_plugin_register_node(instance, "graph_invoker", graph_invoker);
 
-	daggle_plugin_register_type(instance,
-		"graph_object",
-		clone_graph_object,
-		free_graph_object,
-		serialize_graph_object,
-		deserialize_graph_object);
+	daggle_plugin_register_type(instance, "graph_object", clone_graph_object,
+		free_graph_object, serialize_graph_object, deserialize_graph_object);
 }

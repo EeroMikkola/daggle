@@ -3,8 +3,7 @@
 #include "utility/return_macro.h"
 
 void
-void_closure_call(
-	void_closure_t* closure)
+void_closure_call(void_closure_t* closure)
 {
 	ASSERT_PARAMETER(closure);
 	ASSERT_NOT_NULL(closure->function, "Closure must have a function");
@@ -13,12 +12,11 @@ void_closure_call(
 }
 
 void
-void_closure_dispose(
-	void_closure_t* closure)
+void_closure_dispose(void_closure_t* closure)
 {
 	ASSERT_PARAMETER(closure);
 
-	if(!closure->dispose) {
+	if (!closure->dispose) {
 		return;
 	}
 

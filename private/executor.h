@@ -13,7 +13,7 @@ typedef struct task_s {
 	struct task_s* head; // Parent of the subgraph this is a part of
 	struct task_s* tail; // Tail of this' own subgraph
 
-	uint64_t num_subtasks;					// number of subtasks (incl. sink)
+	uint64_t num_subtasks; // number of subtasks (incl. sink)
 	_Atomic(uint64_t) num_pending_subtasks; // this + sum of subtask progress
 
 	dynamic_array_t dependants;

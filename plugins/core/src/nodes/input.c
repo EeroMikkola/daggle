@@ -5,8 +5,7 @@
 #include "types.h"
 
 void
-input_impl(
-	daggle_task_h task, void* context)
+input_impl(daggle_task_h task, void* context)
 {
 	daggle_node_h handle = context;
 
@@ -25,12 +24,10 @@ input_impl(
 	daggle_port_set_value(result_output, type, value);
 }
 
-DEFAULT_VALUE_GENERATOR(
-	input_gdv_value, int32_t, 1, INT_TYPE)
+DEFAULT_VALUE_GENERATOR(input_gdv_value, int32_t, 1, INT_TYPE)
 
 void
-input(
-	daggle_node_h handle)
+input(daggle_node_h handle)
 {
 	daggle_node_declare_parameter(handle, "value", input_gdv_value);
 	daggle_node_declare_output(handle, "result");

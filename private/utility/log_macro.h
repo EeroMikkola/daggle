@@ -24,40 +24,37 @@
 	do {                                                                       \
 		printf(tag " " format ANSI_EC_RESET " " ANSI_EC_DIM                    \
 				   "(%s() in %s:%i)" ANSI_EC_RESET "\n",                       \
-			__VA_ARGS__,                                                       \
-			__FUNCTION__,                                                      \
-			__FILENAME__,                                                      \
-			__LINE__);                                                         \
-	} while(0)
+			__VA_ARGS__, __FUNCTION__, __FILENAME__, __LINE__);                \
+	} while (0)
 #else
 #define LOG_FMT(tag, format, ...)                                              \
 	do {                                                                       \
 		printf(tag " " format ANSI_EC_RESET "\n", __VA_ARGS__);                \
-	} while(0)
+	} while (0)
 #endif
 #else
 #define LOG_FMT(tag, format, ...)                                              \
 	do {                                                                       \
-	} while(0)
+	} while (0)
 #endif
 
 #define LOG(tag, message)                                                      \
 	do {                                                                       \
 		LOG_FMT(tag, "%s", message);                                           \
-	} while(0)
+	} while (0)
 
 #ifdef DAGGLE_ENABLE_LOG_CONDITIONAL_DEBUG
 #define LOG_FMT_COND_DEBUG(format, ...)                                        \
 	do {                                                                       \
 		LOG_FMT(LOG_TAG_DEBUG, format, __VA_ARGS__);                           \
-	} while(0)
+	} while (0)
 #else
 #define LOG_FMT_COND_DEBUG(format, ...)                                        \
 	do {                                                                       \
-	} while(0)
+	} while (0)
 #endif
 
 #define LOG_COND_DEBUG(message)                                                \
 	do {                                                                       \
 		LOG_FMT_COND_DEBUG("%s", message);                                     \
-	} while(0)
+	} while (0)

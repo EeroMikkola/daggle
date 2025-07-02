@@ -4,15 +4,13 @@
 #include <daggle/daggle.h>
 
 const char*
-get_version(
-	void)
+get_version(void)
 {
 	return DAGGLE_VERSION_STRING;
 }
 
 uint32_t
-get_abi(
-	void)
+get_abi(void)
 {
 	return DAGGLE_ABI_VERSION;
 }

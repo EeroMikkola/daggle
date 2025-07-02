@@ -41,7 +41,7 @@ typedef enum port_variant_1_e {
 } port_variant_1_t;
 
 typedef enum input_variant_1_e {
-	IMMUTABLE_REFERENCE, 
+	IMMUTABLE_REFERENCE,
 	IMMUTABLE_COPY,
 	MUTABLE_REFERENCE,
 	MUTABLE_COPY

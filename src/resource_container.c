@@ -6,8 +6,7 @@
 #include "utility/return_macro.h"
 
 void
-resource_container_init(
-	resource_container_t* resource_container)
+resource_container_init(resource_container_t* resource_container)
 {
 	ASSERT_PARAMETER(resource_container);
 
@@ -19,19 +18,18 @@ resource_container_init(
 }
 
 void
-resource_container_destroy(
-	resource_container_t* resource_container)
+resource_container_destroy(resource_container_t* resource_container)
 {
 	ASSERT_PARAMETER(resource_container);
 
-	for(uint64_t i = 0; i < resource_container->nodes.length; ++i) {
+	for (uint64_t i = 0; i < resource_container->nodes.length; ++i) {
 		node_info_t* info = dynamic_array_at(&resource_container->nodes, i);
 		free((char*)info->name_hash.name);
 	}
 
 	dynamic_array_destroy(&resource_container->nodes);
 
-	for(uint64_t i = 0; i < resource_container->types.length; ++i) {
+	for (uint64_t i = 0; i < resource_container->types.length; ++i) {
 		type_info_t* info = dynamic_array_at(&resource_container->types, i);
 		free((char*)info->name_hash.name);
 	}
@@ -40,10 +38,8 @@ resource_container_destroy(
 }
 
 daggle_error_code_t
-resource_container_register_node(
-	resource_container_t* resource_container,
-	const char* node_type,
-	daggle_node_declare_fn declare)
+resource_container_register_node(resource_container_t* resource_container,
+	const char* node_type, daggle_node_declare_fn declare)
 {
 	ASSERT_PARAMETER(resource_container);
 	ASSERT_PARAMETER(node_type);
@@ -65,12 +61,9 @@ resource_container_register_node(
 }
 
 daggle_error_code_t
-resource_container_register_type(
-	resource_container_t* resource_container,
-	const char* type_name,
-	daggle_data_clone_fn cloner,
-	daggle_data_free_fn freer,
-	daggle_data_serialize_fn serializer,
+resource_container_register_type(resource_container_t* resource_container,
+	const char* type_name, daggle_data_clone_fn cloner,
+	daggle_data_free_fn freer, daggle_data_serialize_fn serializer,
 	daggle_data_deserialize_fn deserializer)
 {
 	ASSERT_PARAMETER(resource_container);
@@ -99,10 +92,8 @@ resource_container_register_type(
 }
 
 daggle_error_code_t
-resource_container_get_type(
-	resource_container_t* resource_container,
-	const char* data_type,
-	type_info_t** out_info)
+resource_container_get_type(resource_container_t* resource_container,
+	const char* data_type, type_info_t** out_info)
 {
 	ASSERT_PARAMETER(resource_container);
 	ASSERT_PARAMETER(data_type);
@@ -110,13 +101,13 @@ resource_container_get_type(
 
 	const uint32_t search_hash = fnv1a_32(data_type);
 
-	for(uint64_t i = 0; i < resource_container->types.length; ++i) {
+	for (uint64_t i = 0; i < resource_container->types.length; ++i) {
 		type_info_t* info = dynamic_array_at(&resource_container->types, i);
 
 		ASSERT_NOT_NULL(info, "Type info is null");
 		ASSERT_NOT_NULL(info->name_hash.name, "Type info name is null");
 
-		if(info->name_hash.hash == search_hash
+		if (info->name_hash.hash == search_hash
 			&& !strcmp(data_type, info->name_hash.name)) {
 			*out_info = info;
 			RETURN_STATUS(DAGGLE_SUCCESS);
@@ -129,10 +120,8 @@ resource_container_get_type(
 }
 
 daggle_error_code_t
-resource_container_get_node(
-	resource_container_t* resource_container,
-	const char* node_type,
-	node_info_t** out_info)
+resource_container_get_node(resource_container_t* resource_container,
+	const char* node_type, node_info_t** out_info)
 {
 	ASSERT_PARAMETER(resource_container);
 	ASSERT_PARAMETER(node_type);
@@ -140,13 +129,13 @@ resource_container_get_node(
 
 	const uint32_t search_hash = fnv1a_32(node_type);
 
-	for(uint64_t i = 0; i < resource_container->nodes.length; ++i) {
+	for (uint64_t i = 0; i < resource_container->nodes.length; ++i) {
 		node_info_t* info = dynamic_array_at(&resource_container->nodes, i);
 
 		ASSERT_NOT_NULL(info, "Node info is null");
 		ASSERT_NOT_NULL(info->name_hash.name, "Node name is null");
 
-		if(info->name_hash.hash == search_hash
+		if (info->name_hash.hash == search_hash
 			&& !strcmp(node_type, info->name_hash.name)) {
 			*out_info = info;
 			RETURN_STATUS(DAGGLE_SUCCESS);

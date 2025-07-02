@@ -1,6 +1,6 @@
-#include "instance.h"
 #include "executor.h"
 #include "graph.h"
+#include "instance.h"
 #include "node.h"
 #include "pthread.h"
 #include "stdatomic.h"
@@ -15,16 +15,14 @@
 #include <daggle/daggle.h>
 
 void
-prv_graph_master_task_function(
-	void* context)
+prv_graph_master_task_function(void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
 	LOG(LOG_TAG_INFO, "Run Graph");
 }
 
 void
-prv_graph_master_task_dispose(
-	void* context)
+prv_graph_master_task_dispose(void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
 	graph_t* graph = context;
@@ -35,19 +33,18 @@ prv_graph_master_task_dispose(
 }
 
 daggle_error_code_t
-prv_nodes_taskify(
-	graph_t* graph, daggle_task_h* out_task)
+prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 {
 	ASSERT_PARAMETER(graph);
 	ASSERT_OUTPUT_PARAMETER(out_task);
 
 	dynamic_array_t* nodes = &graph->nodes;
 
-	if(graph->locked) {
+	if (graph->locked) {
 		RETURN_STATUS(DAGGLE_ERROR_OBJECT_LOCKED);
 	}
 
-	if(nodes->length == 0) {
+	if (nodes->length == 0) {
 		LOG(LOG_TAG_ERROR,
 			"At least one node must be defined to execute a graph");
 		RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
@@ -61,23 +58,20 @@ prv_nodes_taskify(
 	graph->locked = true;
 
 	// Create the tasks.
-	for(uint64_t i = 0; i < nodes->length; ++i) {
+	for (uint64_t i = 0; i < nodes->length; ++i) {
 		node_t** nodeelem = dynamic_array_at(nodes, i);
 		node_t* node = *nodeelem;
 
 		task_t* tk;
-		daggle_task_create(node->instance_task,
-			NULL,
-			node->custom_context,
-			(char*)node->info->name_hash.name,
-			(daggle_task_h*)&tk);
+		daggle_task_create(node->instance_task, NULL, node->custom_context,
+			(char*)node->info->name_hash.name, (daggle_task_h*)&tk);
 
 		// TODO: handle error, must task_free(tk) every initialized array
 		dynamic_array_push(&tasks, &tk);
 	}
 
 	// Construct dependencies with node links.
-	for(uint64_t i = 0; i < tasks.length; ++i) {
+	for (uint64_t i = 0; i < tasks.length; ++i) {
 		task_t** tkelem = dynamic_array_at(&tasks, i);
 		task_t* tk = *tkelem;
 
@@ -85,15 +79,15 @@ prv_nodes_taskify(
 		node_t* node = *nodeelem;
 
 		// For each output port of the node.
-		for(uint64_t j = 0; j < node->ports.length; ++j) {
+		for (uint64_t j = 0; j < node->ports.length; ++j) {
 			port_t* item = dynamic_array_at(&node->ports, j);
-			if(item->port_variant != DAGGLE_PORT_OUTPUT) {
+			if (item->port_variant != DAGGLE_PORT_OUTPUT) {
 				continue;
 			}
 
 			// For each link in the port.
 			dynamic_array_t* links = &item->variant.output.links;
-			for(uint64_t j = 0; j < links->length; ++j) {
+			for (uint64_t j = 0; j < links->length; ++j) {
 				port_t** linkelem = dynamic_array_at(links, j);
 
 				// Get the owner node of the port.
@@ -101,11 +95,11 @@ prv_nodes_taskify(
 
 				// Find the tark corresponding to the linked node.
 				task_t* task = NULL;
-				for(uint64_t k = 0; k < nodes->length; ++k) {
+				for (uint64_t k = 0; k < nodes->length; ++k) {
 					node_t** ndelem = dynamic_array_at(nodes, k);
 					node_t* n = *ndelem;
 
-					if(n == owner) {
+					if (n == owner) {
 						task_t** tklm = dynamic_array_at(&tasks, k);
 						task = *tklm;
 						break;
@@ -116,7 +110,7 @@ prv_nodes_taskify(
 
 				// Skip if the task was not found.
 				// i.e. A->B, where only A is executed.
-				if(!task) {
+				if (!task) {
 					LOG(LOG_TAG_ERROR, "NOT FOUND");
 					continue;
 				}
@@ -149,7 +143,7 @@ prv_nodes_taskify(
 	RETURN_STATUS(DAGGLE_SUCCESS);
 
 node_error:
-	for(uint64_t i = 0; i <= tasks.length; ++i) {
+	for (uint64_t i = 0; i <= tasks.length; ++i) {
 		task_t** tkelem = dynamic_array_at(&tasks, i);
 		task_t* tk = *tkelem;
 		task_free(tk);
@@ -161,8 +155,7 @@ node_error:
 }
 
 daggle_error_code_t
-daggle_graph_taskify(
-	daggle_graph_h graph, daggle_task_h* out_task)
+daggle_graph_taskify(daggle_graph_h graph, daggle_task_h* out_task)
 {
 	REQUIRE_PARAMETER(graph);
 	REQUIRE_OUTPUT_PARAMETER(out_task);
@@ -176,8 +169,7 @@ daggle_graph_taskify(
 }
 
 daggle_error_code_t
-daggle_graph_execute(
-	daggle_instance_h instance, daggle_graph_h graph)
+daggle_graph_execute(daggle_instance_h instance, daggle_graph_h graph)
 {
 	REQUIRE_PARAMETER(instance);
 	REQUIRE_PARAMETER(graph);
@@ -190,8 +182,7 @@ daggle_graph_execute(
 }
 
 daggle_error_code_t
-daggle_task_execute(
-	daggle_instance_h instance, daggle_task_h task)
+daggle_task_execute(daggle_instance_h instance, daggle_task_h task)
 {
 	REQUIRE_PARAMETER(instance);
 	REQUIRE_PARAMETER(task);
@@ -201,14 +192,13 @@ daggle_task_execute(
 	ts_llist_queue_enqueue(&instance_impl->executor.queue, task);
 
 	task_t* t = task;
-	while(atomic_load(&t->num_pending_subtasks) > 0) { };
+	while (atomic_load(&t->num_pending_subtasks) > 0) { };
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }
 
 daggle_error_code_t
-daggle_graph_get_daggle(
-	daggle_graph_h graph, daggle_instance_h* out_daggle)
+daggle_graph_get_daggle(daggle_graph_h graph, daggle_instance_h* out_daggle)
 {
 	REQUIRE_PARAMETER(graph);
 	REQUIRE_OUTPUT_PARAMETER(out_daggle);

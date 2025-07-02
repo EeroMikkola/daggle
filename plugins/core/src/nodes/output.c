@@ -6,8 +6,7 @@
 #include "types.h"
 
 void
-output_impl(
-	daggle_task_h task, void* context)
+output_impl(daggle_task_h task, void* context)
 {
 	daggle_node_h handle = context;
 
@@ -29,12 +28,10 @@ output_impl(
 	printf("%s%i\n", msg, val);
 }
 
-DEFAULT_VALUE_GENERATOR(
-	output_gdv_value, int32_t, 1, INT_TYPE)
+DEFAULT_VALUE_GENERATOR(output_gdv_value, int32_t, 1, INT_TYPE)
 
 bool
-output_gdv_message(
-	void** out_data, const char** out_type)
+output_gdv_message(void** out_data, const char** out_type)
 {
 	char* data = malloc(sizeof(char) * 9);
 	data[0] = 'O';
@@ -53,10 +50,11 @@ output_gdv_message(
 }
 
 void
-output(
-	daggle_node_h handle)
+output(daggle_node_h handle)
 {
-	daggle_node_declare_input(handle, "value", DAGGLE_INPUT_IMMUTABLE_REFERENCE, output_gdv_value);
-	daggle_node_declare_input(handle, "message", DAGGLE_INPUT_IMMUTABLE_REFERENCE, output_gdv_message);
+	daggle_node_declare_input(handle, "value", DAGGLE_INPUT_IMMUTABLE_REFERENCE,
+		output_gdv_value);
+	daggle_node_declare_input(handle, "message",
+		DAGGLE_INPUT_IMMUTABLE_REFERENCE, output_gdv_message);
 	daggle_node_declare_task(handle, output_impl);
 }

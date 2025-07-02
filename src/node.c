@@ -1,8 +1,8 @@
 #include "node.h"
 
 #include "data_container.h"
-#include "instance.h"
 #include "graph.h"
+#include "instance.h"
 #include "stdatomic.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -12,8 +12,7 @@
 #include "utility/return_macro.h"
 
 daggle_error_code_t
-node_create(
-	daggle_graph_h graph, const char* node_type, node_t** out_node)
+node_create(daggle_graph_h graph, const char* node_type, node_t** out_node)
 {
 	ASSERT_PARAMETER(graph);
 	ASSERT_PARAMETER(node_type);
@@ -33,7 +32,7 @@ node_create(
 	// Create a port array.
 	daggle_error_code_t error
 		= dynamic_array_init(0, sizeof(port_t), &node->ports);
-	if(error != DAGGLE_SUCCESS) {
+	if (error != DAGGLE_SUCCESS) {
 		free(node);
 		RETURN_STATUS(error);
 	}
@@ -53,20 +52,19 @@ node_create(
 }
 
 void
-node_free(
-	node_t* node)
+node_free(node_t* node)
 {
 	ASSERT_PARAMETER(node);
 
-	if(node->custom_context_destructor) {
+	if (node->custom_context_destructor) {
 		node->custom_context_destructor(node->custom_context);
 	}
 
-	for(uint64_t i = 0; i < node->ports.length; ++i) {
+	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* port = dynamic_array_at(&node->ports, i);
 
 		// Only inputs and outputs have edges. Skip the parameter.
-		if(port->port_variant != DAGGLE_PORT_PARAMETER) {
+		if (port->port_variant != DAGGLE_PORT_PARAMETER) {
 			continue;
 		}
 
@@ -79,18 +77,17 @@ node_free(
 }
 
 port_t*
-node_get_port_by_name(
-	node_t* node, const char* port_name)
+node_get_port_by_name(node_t* node, const char* port_name)
 {
 	ASSERT_PARAMETER(node);
 	ASSERT_PARAMETER(port_name);
 
 	uint32_t search_hash = fnv1a_32(port_name);
 
-	for(uint64_t i = 0; i < node->ports.length; ++i) {
+	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* item = dynamic_array_at(&node->ports, i);
 
-		if(item->name_hash.hash == search_hash
+		if (item->name_hash.hash == search_hash
 			&& !strcmp(port_name, item->name_hash.name)) {
 			return item;
 		}
@@ -100,8 +97,7 @@ node_get_port_by_name(
 }
 
 port_t*
-node_get_port_by_index(
-	node_t* node, uint64_t index)
+node_get_port_by_index(node_t* node, uint64_t index)
 {
 	ASSERT_PARAMETER(node);
 
@@ -111,12 +107,11 @@ node_get_port_by_index(
 }
 
 void
-node_compute_declarations(
-	node_t* node)
+node_compute_declarations(node_t* node)
 {
 	ASSERT_PARAMETER(node);
 
-	if(node->custom_context_destructor) {
+	if (node->custom_context_destructor) {
 		node->custom_context_destructor(node->custom_context);
 	}
 
@@ -124,7 +119,7 @@ node_compute_declarations(
 	node->custom_context_destructor = NULL;
 
 	// Reset declaration state flags to undeclared.
-	for(uint64_t i = 0; i < node->ports.length; ++i) {
+	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* port = dynamic_array_at(&node->ports, i);
 		port->declared = false;
 	}
@@ -136,17 +131,17 @@ node_compute_declarations(
 	declare_fn(node);
 
 	// Remove undeclared ports.
-	for(uint64_t i = 0; i < node->ports.length; ++i) {
+	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* port = dynamic_array_at(&node->ports, i);
 
-		if(!port->declared) {
+		if (!port->declared) {
 			port_destroy(port);
 			dynamic_array_remove(&node->ports, i);
 		}
 	}
 
 	// If custom context was not set, implicitly use node as the context.
-	if(!node->custom_context_destructor && !node->custom_context) {
+	if (!node->custom_context_destructor && !node->custom_context) {
 		daggle_node_declare_context(node, node, NULL);
 	}
 }

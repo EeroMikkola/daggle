@@ -7,14 +7,16 @@
 #include <daggle/daggle.h>
 
 daggle_error_code_t
-daggle_instance_create(daggle_plugin_source_t** plugins, uint64_t num_plugins, daggle_instance_h* out_instance)
+daggle_instance_create(daggle_plugin_source_t** plugins, uint64_t num_plugins,
+	daggle_instance_h* out_instance)
 {
 	REQUIRE_OUTPUT_PARAMETER(out_instance);
 
 	instance_t* instance = malloc(sizeof *instance);
 	REQUIRE_ALLOCATION_DAGGLE_SUCCESSFUL(instance);
 
-	RETURN_IF_ERROR(plugin_manager_init(instance, plugins, num_plugins, &instance->plugin_manager));
+	RETURN_IF_ERROR(plugin_manager_init(instance, plugins, num_plugins,
+		&instance->plugin_manager));
 	RETURN_IF_ERROR(executor_init(&instance->executor));
 
 	*out_instance = instance;

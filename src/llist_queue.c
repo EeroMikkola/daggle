@@ -4,8 +4,7 @@
 #include "utility/return_macro.h"
 
 void
-llist_queue_init(
-	llist_queue_t* queue)
+llist_queue_init(llist_queue_t* queue)
 {
 	ASSERT_PARAMETER(queue);
 
@@ -14,19 +13,18 @@ llist_queue_init(
 }
 
 void
-llist_queue_destroy(
-	llist_queue_t* queue)
+llist_queue_destroy(llist_queue_t* queue)
 {
 	ASSERT_PARAMETER(queue);
 
-	if(!queue->head) {
+	if (!queue->head) {
 		return;
 	}
 
 	// Free the remaining elements in the queue.
 	llist_node_t* current = queue->head;
 	llist_node_t* next = NULL;
-	while(current) {
+	while (current) {
 		next = current->next;
 		free(current);
 		current = next;
@@ -34,8 +32,7 @@ llist_queue_destroy(
 }
 
 daggle_error_code_t
-llist_queue_enqueue(
-	llist_queue_t* queue, void* payload)
+llist_queue_enqueue(llist_queue_t* queue, void* payload)
 {
 	ASSERT_PARAMETER(queue);
 
@@ -45,7 +42,7 @@ llist_queue_enqueue(
 	node->data = payload;
 	node->next = NULL;
 
-	if(queue->tail) {
+	if (queue->tail) {
 		queue->tail->next = node;
 	} else {
 		queue->head = node;
@@ -57,20 +54,19 @@ llist_queue_enqueue(
 }
 
 void
-llist_queue_dequeue(
-	llist_queue_t* queue, void** out_payload)
+llist_queue_dequeue(llist_queue_t* queue, void** out_payload)
 {
 	ASSERT_PARAMETER(queue);
 	ASSERT_OUTPUT_PARAMETER(out_payload);
 
-	if(!queue->head) {
+	if (!queue->head) {
 		*out_payload = NULL;
 		return;
 	}
 
 	llist_node_t* node = queue->head;
 	queue->head = node->next;
-	if(!queue->head) {
+	if (!queue->head) {
 		queue->tail = NULL;
 	}
 

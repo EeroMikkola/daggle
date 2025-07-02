@@ -12,8 +12,9 @@ typedef struct plugin_manager_s {
 } plugin_manager_t;
 
 daggle_error_code_t
-plugin_manager_init(
-	daggle_instance_h instance, daggle_plugin_source_t** plugins, uint64_t num_plugins, plugin_manager_t* out_plugin_manager);
+plugin_manager_init(daggle_instance_h instance,
+	daggle_plugin_source_t** plugins, uint64_t num_plugins,
+	plugin_manager_t* out_plugin_manager);
 
 void
 plugin_manager_destroy(plugin_manager_t* plugin_manager);

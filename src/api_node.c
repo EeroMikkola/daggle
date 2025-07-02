@@ -8,11 +8,8 @@
 #include <daggle/daggle.h>
 
 daggle_error_code_t
-prv_node_declare_port(
-	daggle_port_variant_t variant,
-	daggle_node_h node,
-	const char* port_name,
-	daggle_input_variant_t input_variant,
+prv_node_declare_port(daggle_port_variant_t variant, daggle_node_h node,
+	const char* port_name, daggle_input_variant_t input_variant,
 	daggle_default_value_generator_fn default_value_gen)
 {
 	ASSERT_PARAMETER(node);
@@ -22,11 +19,11 @@ prv_node_declare_port(
 	node_t* node_impl = node;
 
 	port_t* preexisting_port;
-	daggle_node_get_port_by_name(
-		node_impl, port_name, (daggle_port_h*)&preexisting_port);
+	daggle_node_get_port_by_name(node_impl, port_name,
+		(daggle_port_h*)&preexisting_port);
 
 	// If the port already exists -> flag as declared.
-	if(preexisting_port) {
+	if (preexisting_port) {
 		preexisting_port->declared = true;
 		RETURN_STATUS(DAGGLE_SUCCESS);
 	}
@@ -40,9 +37,9 @@ prv_node_declare_port(
 
 	// Create the data container of the port.
 	data_container_t default_value_cnt;
-	if(default_value_gen) {
-		data_container_init_generate(
-			instance, &default_value_cnt, default_value_gen);
+	if (default_value_gen) {
+		data_container_init_generate(instance, &default_value_cnt,
+			default_value_gen);
 	} else {
 		data_container_init(instance, &default_value_cnt);
 	}
@@ -51,7 +48,7 @@ prv_node_declare_port(
 	port_init(node_impl, port_name, variant, &new_port);
 	new_port.value = default_value_cnt;
 
-	if(variant == DAGGLE_PORT_INPUT) {
+	if (variant == DAGGLE_PORT_INPUT) {
 		new_port.variant.input.variant = input_variant;
 	}
 
@@ -62,9 +59,7 @@ prv_node_declare_port(
 }
 
 daggle_error_code_t
-daggle_node_declare_input(
-	daggle_node_h node,
-	const char* port_name,
+daggle_node_declare_input(daggle_node_h node, const char* port_name,
 	daggle_input_variant_t variant,
 	daggle_default_value_generator_fn default_value_gen)
 {
@@ -72,38 +67,34 @@ daggle_node_declare_input(
 	REQUIRE_PARAMETER(port_name);
 	REQUIRE_PARAMETER(default_value_gen);
 
-	RETURN_STATUS(prv_node_declare_port(
-		DAGGLE_PORT_INPUT, node, port_name, variant, default_value_gen));
+	RETURN_STATUS(prv_node_declare_port(DAGGLE_PORT_INPUT, node, port_name,
+		variant, default_value_gen));
 }
 
 daggle_error_code_t
-daggle_node_declare_parameter(
-	daggle_node_h node,
-	const char* port_name,
+daggle_node_declare_parameter(daggle_node_h node, const char* port_name,
 	daggle_default_value_generator_fn default_value_gen)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_PARAMETER(port_name);
 	REQUIRE_PARAMETER(default_value_gen);
 
-	RETURN_STATUS(prv_node_declare_port(
-		DAGGLE_PORT_PARAMETER, node, port_name, false, default_value_gen));
+	RETURN_STATUS(prv_node_declare_port(DAGGLE_PORT_PARAMETER, node, port_name,
+		false, default_value_gen));
 }
 
 daggle_error_code_t
-daggle_node_declare_output(
-	daggle_node_h node, const char* port_name)
+daggle_node_declare_output(daggle_node_h node, const char* port_name)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_PARAMETER(port_name);
 
-	RETURN_STATUS(prv_node_declare_port(
-		DAGGLE_PORT_OUTPUT, node, port_name, false, NULL));
+	RETURN_STATUS(prv_node_declare_port(DAGGLE_PORT_OUTPUT, node, port_name,
+		false, NULL));
 }
 
 daggle_error_code_t
-daggle_node_declare_task(
-	daggle_node_h node, daggle_node_task_fn task)
+daggle_node_declare_task(daggle_node_h node, daggle_node_task_fn task)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_PARAMETER(task);
@@ -115,14 +106,14 @@ daggle_node_declare_task(
 }
 
 daggle_error_code_t
-daggle_node_declare_context(
-	daggle_node_h node, void* context, daggle_node_context_free_fn destructor)
+daggle_node_declare_context(daggle_node_h node, void* context,
+	daggle_node_context_free_fn destructor)
 {
 	REQUIRE_PARAMETER(node);
 
 	node_t* internal_node = node;
 
-	if(internal_node->custom_context_destructor) {
+	if (internal_node->custom_context_destructor) {
 		internal_node->custom_context_destructor(internal_node->custom_context);
 	}
 
@@ -133,8 +124,7 @@ daggle_node_declare_context(
 }
 
 daggle_error_code_t
-daggle_node_get_type(
-	daggle_node_h node, const char** out_type)
+daggle_node_get_type(daggle_node_h node, const char** out_type)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_OUTPUT_PARAMETER(out_type);
@@ -147,8 +137,7 @@ daggle_node_get_type(
 }
 
 daggle_error_code_t
-daggle_node_get_daggle(
-	daggle_node_h node, daggle_instance_h* out_daggle)
+daggle_node_get_daggle(daggle_node_h node, daggle_instance_h* out_daggle)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_OUTPUT_PARAMETER(out_daggle);
@@ -160,8 +149,7 @@ daggle_node_get_daggle(
 }
 
 daggle_error_code_t
-daggle_node_get_graph(
-	daggle_node_h node, daggle_graph_h* out_graph)
+daggle_node_get_graph(daggle_node_h node, daggle_graph_h* out_graph)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_OUTPUT_PARAMETER(out_graph);
@@ -175,8 +163,8 @@ daggle_node_get_graph(
 }
 
 daggle_error_code_t
-daggle_node_get_port_by_name(
-	daggle_node_h node, const char* port_name, daggle_port_h* out_port)
+daggle_node_get_port_by_name(daggle_node_h node, const char* port_name,
+	daggle_port_h* out_port)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_PARAMETER(port_name);
@@ -189,14 +177,14 @@ daggle_node_get_port_by_name(
 }
 
 daggle_error_code_t
-daggle_node_get_port_by_index(
-	daggle_node_h node, uint64_t index, daggle_port_h* out_port)
+daggle_node_get_port_by_index(daggle_node_h node, uint64_t index,
+	daggle_port_h* out_port)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_OUTPUT_PARAMETER(out_port);
 
 	node_t* node_impl = node;
-	if(index >= node_impl->ports.length) {
+	if (index >= node_impl->ports.length) {
 		*out_port = NULL;
 		RETURN_STATUS(DAGGLE_SUCCESS);
 	}

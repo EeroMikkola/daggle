@@ -1,6 +1,6 @@
 #include "data_container.h"
-#include "instance.h"
 #include "graph.h"
+#include "instance.h"
 #include "node.h"
 #include "stdatomic.h"
 #include "stdio.h"
@@ -11,8 +11,7 @@
 #include "utility/return_macro.h"
 
 daggle_error_code_t
-daggle_graph_create(
-	daggle_instance_h instance, daggle_graph_h* out_graph)
+daggle_graph_create(daggle_instance_h instance, daggle_graph_h* out_graph)
 {
 	REQUIRE_PARAMETER(instance);
 	REQUIRE_OUTPUT_PARAMETER(out_graph);
@@ -33,8 +32,7 @@ daggle_graph_create(
 }
 
 daggle_error_code_t
-daggle_graph_free(
-	daggle_graph_h handle)
+daggle_graph_free(daggle_graph_h handle)
 {
 	REQUIRE_PARAMETER(handle);
 
@@ -48,15 +46,15 @@ daggle_graph_free(
 }
 
 daggle_error_code_t
-daggle_graph_add_node(
-	daggle_graph_h handle, const char* type, daggle_node_h* out_node)
+daggle_graph_add_node(daggle_graph_h handle, const char* type,
+	daggle_node_h* out_node)
 {
 	REQUIRE_PARAMETER(handle);
 	REQUIRE_OUTPUT_PARAMETER(out_node);
 
 	graph_t* graph = handle;
 
-	if(graph->locked) {
+	if (graph->locked) {
 		RETURN_STATUS(DAGGLE_ERROR_OBJECT_LOCKED);
 	}
 
@@ -72,22 +70,21 @@ daggle_graph_add_node(
 }
 
 daggle_error_code_t
-daggle_graph_remove_node(
-	daggle_graph_h handle, daggle_node_h node)
+daggle_graph_remove_node(daggle_graph_h handle, daggle_node_h node)
 {
 	REQUIRE_PARAMETER(handle);
 	REQUIRE_PARAMETER(node);
 
 	graph_t* graph = handle;
 
-	if(graph->locked) {
+	if (graph->locked) {
 		RETURN_STATUS(DAGGLE_ERROR_OBJECT_LOCKED);
 	}
 
-	for(uint64_t i = 0; i < graph->nodes.length; ++i) {
+	for (uint64_t i = 0; i < graph->nodes.length; ++i) {
 		node_t** item = dynamic_array_at(&graph->nodes, i);
 
-		if(item == node) {
+		if (item == node) {
 			dynamic_array_remove(&graph->nodes, i);
 
 			node_free(node);
@@ -101,14 +98,14 @@ daggle_graph_remove_node(
 }
 
 daggle_error_code_t
-daggle_graph_get_node_by_index(
-	daggle_graph_h handle, uint64_t index, daggle_node_h* out_node)
+daggle_graph_get_node_by_index(daggle_graph_h handle, uint64_t index,
+	daggle_node_h* out_node)
 {
 	REQUIRE_PARAMETER(handle);
 	REQUIRE_OUTPUT_PARAMETER(out_node);
 
 	graph_t* graph = handle;
-	if(index >= graph->nodes.length) {
+	if (index >= graph->nodes.length) {
 		*out_node = NULL;
 		RETURN_STATUS(DAGGLE_SUCCESS);
 	}

@@ -9,7 +9,8 @@
 
 daggle_error_code_t
 plugin_manager_init(daggle_instance_h instance,
-	daggle_plugin_source_t** plugins, uint64_t num_plugins, plugin_manager_t* out_plugin_manager)
+	daggle_plugin_source_t** plugins, uint64_t num_plugins,
+	plugin_manager_t* out_plugin_manager)
 {
 	ASSERT_PARAMETER(instance);
 	ASSERT_OUTPUT_PARAMETER(out_plugin_manager);
@@ -21,19 +22,19 @@ plugin_manager_init(daggle_instance_h instance,
 		&out_plugin_manager->plugin_instances);
 
 	// TODO: Validate dependencies
-	
-	for(uint64_t i = 0; i < num_plugins; ++i) {
+
+	for (uint64_t i = 0; i < num_plugins; ++i) {
 		daggle_plugin_source_t* plugin = plugins[i];
-		
+
 		daggle_plugin_interface_t instance;
 		plugin->load(plugin, &instance);
-		
+
 		dynamic_array_push(&out_plugin_manager->plugin_instances, &instance);
 	}
-	
+
 	// TODO: Topologically sort plugins
 
-	for(uint32_t i = 0; i < out_plugin_manager->plugin_instances.length; ++i) {
+	for (uint32_t i = 0; i < out_plugin_manager->plugin_instances.length; ++i) {
 		daggle_plugin_interface_t* plugin
 			= dynamic_array_at(&out_plugin_manager->plugin_instances, i);
 
@@ -138,13 +139,12 @@ prv_plugin_manager_sort_topologically(plugin_manager_t* plugin_manager,
 		sorted[sorted_count++] = *item;
 
 		// Reduce the dependency count of each dependent plugin
-		for(uint64_t j = 0; j < plugin_manager->plugin_descriptors.length; ++j) {
-			daggle_plugin_source_t* other_item
-				= dynamic_array_at(&plugin_manager->plugin_descriptors, j);
+		for(uint64_t j = 0; j < plugin_manager->plugin_descriptors.length; ++j)
+{ daggle_plugin_source_t* other_item =
+dynamic_array_at(&plugin_manager->plugin_descriptors, j);
 
-			for(char** dependency = other_item->dependencies; dependency; ++dependency) {
-				if(strcmp(*dependency, (*item)->id) != 0) {
-					continue;
+			for(char** dependency = other_item->dependencies; dependency;
+++dependency) { if(strcmp(*dependency, (*item)->id) != 0) { continue;
 				}
 
 				if(--dependency_count[j] > 0) {

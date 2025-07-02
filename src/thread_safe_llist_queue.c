@@ -4,8 +4,7 @@
 #include "utility/thread_safe_linked_queue.h"
 
 void
-ts_llist_queue_init(
-	ts_llist_queue_t* queue)
+ts_llist_queue_init(ts_llist_queue_t* queue)
 {
 	ASSERT_PARAMETER(queue);
 
@@ -18,8 +17,7 @@ ts_llist_queue_init(
 }
 
 void
-ts_llist_queue_destroy(
-	ts_llist_queue_t* queue)
+ts_llist_queue_destroy(ts_llist_queue_t* queue)
 {
 	ASSERT_PARAMETER(queue);
 
@@ -27,8 +25,7 @@ ts_llist_queue_destroy(
 }
 
 daggle_error_code_t
-ts_llist_queue_enqueue(
-	ts_llist_queue_t* queue, void* payload)
+ts_llist_queue_enqueue(ts_llist_queue_t* queue, void* payload)
 {
 	ASSERT_PARAMETER(queue);
 
@@ -49,8 +46,8 @@ enqueue_error:
 }
 
 void
-ts_llist_queue_dequeue(
-	ts_llist_queue_t* queue, volatile bool* interrupt, void** out_payload)
+ts_llist_queue_dequeue(ts_llist_queue_t* queue, volatile bool* interrupt,
+	void** out_payload)
 {
 	ASSERT_PARAMETER(queue);
 	ASSERT_PARAMETER(interrupt);
@@ -63,11 +60,11 @@ ts_llist_queue_dequeue(
 	// a) new task is available.
 	// b) the execution is interrupted.
 	// Interruption happens when the execution finishes, or cancel is called.
-	while(!queue->queue.head && !*interrupt) {
+	while (!queue->queue.head && !*interrupt) {
 		pthread_cond_wait(&queue->condition, &queue->lock);
 	}
 
-	if(*interrupt) {
+	if (*interrupt) {
 		pthread_mutex_unlock(&queue->lock);
 		*out_payload = NULL;
 		return;

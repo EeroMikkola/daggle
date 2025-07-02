@@ -9,18 +9,17 @@
 #include "utility/return_macro.h"
 
 void
-port_destroy(
-	port_t* port)
+port_destroy(port_t* port)
 {
 	ASSERT_PARAMETER(port);
 
 	free((char*)port->name_hash.name);
 
-	if(port->port_variant != DAGGLE_PORT_PARAMETER) {
+	if (port->port_variant != DAGGLE_PORT_PARAMETER) {
 		daggle_port_disconnect(port);
 	}
 
-	if(port->port_variant == DAGGLE_PORT_OUTPUT) {
+	if (port->port_variant == DAGGLE_PORT_OUTPUT) {
 		dynamic_array_destroy(&port->variant.output.links);
 	}
 
@@ -28,33 +27,28 @@ port_destroy(
 }
 
 void
-port_init(
-	daggle_node_h node,
-	const char* port_name,
-	daggle_port_variant_t variant,
-	port_t* port)
+port_init(daggle_node_h node, const char* port_name,
+	daggle_port_variant_t variant, port_t* port)
 {
 	ASSERT_PARAMETER(node);
 	ASSERT_PARAMETER(port_name);
 	ASSERT_PARAMETER(port);
 
-	name_with_hash_t nh = { 
-		.name = strdup(port_name), 
-		.hash = fnv1a_32(port_name) 
-	};
+	name_with_hash_t nh
+		= { .name = strdup(port_name), .hash = fnv1a_32(port_name) };
 
 	port->name_hash = nh;
 	port->owner = node;
 	port->port_variant = variant;
-	
+
 	daggle_instance_h instance;
 	daggle_graph_get_daggle(((node_t*)node)->graph, &instance);
 	data_container_init(instance, &port->value);
 
-	if(variant == DAGGLE_PORT_INPUT) {
+	if (variant == DAGGLE_PORT_INPUT) {
 		port->variant.input.link = NULL;
 		port->variant.input.variant = DAGGLE_INPUT_IMMUTABLE_REFERENCE;
-	} else if(variant == DAGGLE_PORT_OUTPUT) {
+	} else if (variant == DAGGLE_PORT_OUTPUT) {
 		dynamic_array_init(0, sizeof(port_t*), &port->variant.output.links);
 	}
 }

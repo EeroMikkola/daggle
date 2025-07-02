@@ -42,9 +42,7 @@ typedef struct port_s {
 } port_t;
 
 void
-port_init(daggle_node_h node,
-	const char* name,
-	daggle_port_variant_t variant,
+port_init(daggle_node_h node, const char* name, daggle_port_variant_t variant,
 	port_t* port);
 
 void

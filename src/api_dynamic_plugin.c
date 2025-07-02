@@ -51,9 +51,10 @@ prv_dp_interface_init(daggle_instance_h instance, void* context)
 
 	ASSERT_NOT_NULL(handle, "Dynamic plugin handle is null");
 
-	prv_dp_init init = (prv_dp_init)(void*)GET_PROC_ADDRESS(handle, "initialize");
+	prv_dp_init init
+		= (prv_dp_init)(void*)GET_PROC_ADDRESS(handle, "initialize");
 
-	if(!init) {
+	if (!init) {
 		LOG(LOG_TAG_ERROR, "Plugin entrypoint not found");
 		return;
 	}
@@ -76,7 +77,7 @@ prv_dp_interface_shutdown(daggle_instance_h instance, void* context)
 }
 
 void
-prv_dp_source_impl_context_load(struct daggle_plugin_source_s* source, 
+prv_dp_source_impl_context_load(struct daggle_plugin_source_s* source,
 	daggle_plugin_interface_t* out_interface)
 {
 	ASSERT_PARAMETER(source);
@@ -116,8 +117,7 @@ prv_dp_parse_plugin_parse_str(char* value, char** out_target)
 
 daggle_error_code_t
 prv_dp_parse_plugin(const char* path,
-	daggle_plugin_source_t* out_plugin_descriptor,
-	char** out_binary_path)
+	daggle_plugin_source_t* out_plugin_descriptor, char** out_binary_path)
 {
 	ASSERT_PARAMETER(path);
 	ASSERT_PARAMETER(out_plugin_descriptor);
@@ -129,7 +129,7 @@ prv_dp_parse_plugin(const char* path,
 
 	FILE* file = fopen(path, "r");
 
-	if(!file) {
+	if (!file) {
 		LOG_FMT(LOG_TAG_ERROR, "Plugin at path %s not found\n", path);
 		RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
 	}
@@ -144,13 +144,13 @@ prv_dp_parse_plugin(const char* path,
 	// Equivalent to starting the file with: [plugin]
 	strcpy(category, "plugin");
 
-	while(fgets(line, sizeof(line), file)) {
-		if(line[0] == '\n') {
+	while (fgets(line, sizeof(line), file)) {
+		if (line[0] == '\n') {
 			continue;
 		}
 		uint32_t line_len = strlen(line);
 
-		if(line[0] == '[') {
+		if (line[0] == '[') {
 			memcpy(category, line + 1, line_len - 3);
 			category[line_len - 3] = '\0';
 			continue;
@@ -158,7 +158,7 @@ prv_dp_parse_plugin(const char* path,
 
 		char* boundary = strchr(line, '=');
 
-		if(!boundary) {
+		if (!boundary) {
 			LOG(LOG_TAG_ERROR, "Could not find \'=\' on line ");
 			RETURN_STATUS(DAGGLE_ERROR_PARSE);
 		}
@@ -170,25 +170,25 @@ prv_dp_parse_plugin(const char* path,
 
 		// If the line ends with newline, ignore the last character
 		uint32_t value_len = line_len - key_len - 1;
-		if(boundary[value_len] == '\n') {
+		if (boundary[value_len] == '\n') {
 			value_len -= 1;
 		}
 
 		memcpy(value, boundary + 1, value_len);
 		value[value_len] = '\0';
 
-		if(strcmp(category, "plugin") == 0) {
-			if(strcmp(key, "id") == 0) {
+		if (strcmp(category, "plugin") == 0) {
+			if (strcmp(key, "id") == 0) {
 				prv_dp_parse_plugin_parse_str(value,
 					&out_plugin_descriptor->id);
 			}
-		} else if(strcmp(category, PLATFORM_CODE) == 0) {
-			if(strcmp(key, "bin") == 0) {
+		} else if (strcmp(category, PLATFORM_CODE) == 0) {
+			if (strcmp(key, "bin") == 0) {
 				prv_dp_parse_plugin_parse_str(value, out_binary_path);
 			}
-		} else if(strcmp(category, "dependencies") == 0) {
+		} else if (strcmp(category, "dependencies") == 0) {
 			uint32_t abi = strtoul(value, NULL, 10);
-			if(strcmp(key, "daggle") == 0) {
+			if (strcmp(key, "daggle") == 0) {
 				out_plugin_descriptor->abi = abi;
 				continue;
 			}
@@ -202,13 +202,13 @@ prv_dp_parse_plugin(const char* path,
 
 	// Optionally, remove the unused capacity from the array. Not strictly
 	// required.
-	if(dependencies.capacity != dependencies.length) {
+	if (dependencies.capacity != dependencies.length) {
 		dynamic_array_resize(&dependencies, dependencies.length);
 	}
 
 	// Move the dependency array ownership from dynamic array to plugin
 	// descriptor
-	if(dependencies.length == 0) {
+	if (dependencies.length == 0) {
 		out_plugin_descriptor->dependencies = NULL;
 	} else {
 		dynamic_array_push(&dependencies, NULL);
@@ -239,20 +239,20 @@ prv_dynamic_plugin_create_source(const char* path,
 	daggle_error_code_t error
 		= prv_dp_parse_plugin(path, &plugin_descriptor, &binary_path);
 
-	if(error != DAGGLE_SUCCESS) {
+	if (error != DAGGLE_SUCCESS) {
 		LOG(LOG_TAG_ERROR, "Plugin parsing failed");
 		RETURN_STATUS(error);
 	}
 
 	// If the plugin file did not define plugin binary path
-	if(!binary_path) {
+	if (!binary_path) {
 		LOG(LOG_TAG_ERROR, "Plugin binary for " PLATFORM_CODE " is missing");
 		RETURN_STATUS(DAGGLE_ERROR_PARSE);
 	}
 
 	// TODO: validate binary_path
 
-	//Create a plugin context to hold the plugin library handle
+	// Create a plugin context to hold the plugin library handle
 	prv_dp_source_impl_context_t* ctx = malloc(sizeof *ctx);
 	REQUIRE_ALLOCATION_DAGGLE_SUCCESSFUL(ctx);
 
@@ -260,7 +260,7 @@ prv_dynamic_plugin_create_source(const char* path,
 
 	// Set the descriptor context
 	plugin_descriptor.context = ctx;
-	
+
 	// Set descriptor functions
 	plugin_descriptor.load = prv_dp_source_impl_context_load;
 	plugin_descriptor.dispose = prv_dp_source_impl_context_free;
@@ -273,7 +273,7 @@ prv_dynamic_plugin_create_source(const char* path,
 }
 
 daggle_error_code_t
-daggle_plugin_source_create_from_file(const char* path, 
+daggle_plugin_source_create_from_file(const char* path,
 	daggle_plugin_source_t* out_plugin_source)
 {
 	REQUIRE_PARAMETER(path);

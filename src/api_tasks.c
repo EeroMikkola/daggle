@@ -6,13 +6,12 @@
 #include "utility/return_macro.h"
 
 void
-prv_sink_closure(
-	void* context)
-{ }
+prv_sink_closure(void* context)
+{
+}
 
 void
-prv_sink_dispose(
-	void* context)
+prv_sink_dispose(void* context)
 {
 	task_free((task_t*)context);
 }
@@ -25,8 +24,7 @@ typedef struct prv_node_task_wrapper_ctx {
 } prv_node_task_wrapper_ctx_t;
 
 void
-prv_node_task_wrapper_function(
-	void* context)
+prv_node_task_wrapper_function(void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
 
@@ -36,14 +34,13 @@ prv_node_task_wrapper_function(
 }
 
 void
-prv_node_task_wrapper_dispose(
-	void* context)
+prv_node_task_wrapper_dispose(void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
 
 	prv_node_task_wrapper_ctx_t* context_impl = context;
 
-	if(context_impl->dispose) {
+	if (context_impl->dispose) {
 		context_impl->dispose(context_impl->context);
 	}
 
@@ -51,11 +48,8 @@ prv_node_task_wrapper_dispose(
 }
 
 daggle_error_code_t
-daggle_task_create(
-	daggle_node_task_fn work,
-	daggle_node_task_dispose_fn dispose,
-	void* context,
-	char* id,
+daggle_task_create(daggle_node_task_fn work,
+	daggle_node_task_dispose_fn dispose, void* context, char* id,
 	daggle_task_h* out_task)
 {
 	task_t* task = malloc(sizeof(task_t));
@@ -86,8 +80,7 @@ daggle_task_create(
 // Set dependencies in the flattened representation of task graph
 // Depending on a task will only depend on the task, not also it's subtasks.
 daggle_error_code_t
-prv_task_depend_flat(
-	task_t* task, task_t* dependency)
+prv_task_depend_flat(task_t* task, task_t* dependency)
 {
 	atomic_fetch_add(&task->num_pending_dependencies, 1);
 	dynamic_array_push(&dependency->dependants, &task);
@@ -98,11 +91,10 @@ prv_task_depend_flat(
 // Set dependencies in the subgraph representation of task graph
 // Depending on a task will depend on it and its subtasks.
 daggle_error_code_t
-daggle_task_depend(
-	daggle_task_h task, daggle_task_h dependency)
+daggle_task_depend(daggle_task_h task, daggle_task_h dependency)
 {
 	task_t* dependency_impl = dependency;
-	if(dependency_impl->tail && dependency_impl->tail != dependency_impl
+	if (dependency_impl->tail && dependency_impl->tail != dependency_impl
 		&& dependency_impl->tail->head == dependency_impl) {
 		dependency_impl = dependency_impl->tail;
 	}
@@ -111,10 +103,10 @@ daggle_task_depend(
 }
 
 daggle_error_code_t
-daggle_task_add_subgraph(
-	daggle_task_h task, daggle_task_h* tasks, uint64_t num_tasks)
+daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
+	uint64_t num_tasks)
 {
-	ASSERT_PARAMETER(task); 
+	ASSERT_PARAMETER(task);
 	ASSERT_PARAMETER(tasks);
 
 	// TODO: Check for cycles
@@ -123,7 +115,7 @@ daggle_task_add_subgraph(
 	daggle_task_h* tasks_impl = tasks;
 
 	task_t* tail = NULL;
-	if(task_impl->tail == NULL) {
+	if (task_impl->tail == NULL) {
 		tail = malloc(sizeof(task_t));
 		tail->tail = NULL;
 		tail->head = task_impl;
@@ -152,24 +144,24 @@ daggle_task_add_subgraph(
 
 	task_impl->num_subtasks += num_tasks;
 	atomic_fetch_add(&task_impl->num_pending_subtasks, num_tasks);
-	for(uint64_t i = 0; i < num_tasks; ++i) {
+	for (uint64_t i = 0; i < num_tasks; ++i) {
 		task_t* subtask = tasks[i];
 	}
 
-	for(uint64_t i = 0; i < num_tasks; ++i) {
+	for (uint64_t i = 0; i < num_tasks; ++i) {
 		task_t* subtask = tasks[i];
 
 		// Make tail a dependant of every task.
 		// Only tasks without dependants have to be the dependencies of the
 		// sink.
-		if(subtask->dependants.length == 0) {
+		if (subtask->dependants.length == 0) {
 			prv_task_depend_flat(tail, subtask);
 		}
 
 		// Make the original task a dependency of every task.
 		// Only tasks without dependencies have to be dependants of the
 		// original task.
-		if(atomic_load(&subtask->num_pending_dependencies) == 0) {
+		if (atomic_load(&subtask->num_pending_dependencies) == 0) {
 			prv_task_depend_flat(subtask, task_impl);
 		}
 

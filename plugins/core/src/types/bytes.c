@@ -4,8 +4,7 @@
 #include "stdio.h"
 
 void
-clone_bytes(
-	daggle_instance_h instance, const void* data, void** target)
+clone_bytes(daggle_instance_h instance, const void* data, void** target)
 {
 	uint64_t len = *((uint64_t*)data);
 
@@ -17,18 +16,14 @@ clone_bytes(
 }
 
 void
-free_bytes(
-	daggle_instance_h instance, void* data)
+free_bytes(daggle_instance_h instance, void* data)
 {
 	free(data);
 }
 
 void
-serialize_bytes(
-	daggle_instance_h instance,
-	const void* data,
-	unsigned char** out_buf,
-	uint64_t* out_len)
+serialize_bytes(daggle_instance_h instance, const void* data,
+	unsigned char** out_buf, uint64_t* out_len)
 {
 	uint64_t len = *((uint64_t*)data);
 	*out_len = len;
@@ -39,13 +34,10 @@ serialize_bytes(
 }
 
 void
-deserialize_bytes(
-	daggle_instance_h instance,
-	const unsigned char* bin,
-	uint64_t len,
-	void** target)
+deserialize_bytes(daggle_instance_h instance, const unsigned char* bin,
+	uint64_t len, void** target)
 {
-	if(len <= sizeof(uint64_t)) {
+	if (len <= sizeof(uint64_t)) {
 		return;
 	}
 

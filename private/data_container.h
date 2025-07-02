@@ -23,8 +23,7 @@ void
 data_container_destroy(data_container_t* container);
 
 void
-data_container_replace(data_container_t* container,
-	type_info_t* type,
+data_container_replace(data_container_t* container, type_info_t* type,
 	void* data);
 
 bool

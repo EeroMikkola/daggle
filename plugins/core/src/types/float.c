@@ -1,8 +1,7 @@
 #include "types/float.h"
 
 void
-clone_float(
-	daggle_instance_h instance, const void* data, void** target)
+clone_float(daggle_instance_h instance, const void* data, void** target)
 {
 	float* res = malloc(sizeof(float));
 	*res = *((const float*)data);
@@ -10,18 +9,14 @@ clone_float(
 }
 
 void
-free_float(
-	daggle_instance_h instance, void* data)
+free_float(daggle_instance_h instance, void* data)
 {
 	free(data);
 }
 
 void
-serialize_float(
-	daggle_instance_h instance,
-	const void* data,
-	unsigned char** out_buf,
-	uint64_t* out_len)
+serialize_float(daggle_instance_h instance, const void* data,
+	unsigned char** out_buf, uint64_t* out_len)
 {
 	float val = *(float*)data;
 	unsigned char* buf = malloc(sizeof val);
@@ -32,13 +27,10 @@ serialize_float(
 }
 
 void
-deserialize_float(
-	daggle_instance_h instance,
-	const unsigned char* bin,
-	uint64_t len,
-	void** target)
+deserialize_float(daggle_instance_h instance, const unsigned char* bin,
+	uint64_t len, void** target)
 {
-	if(len != sizeof(float)) {
+	if (len != sizeof(float)) {
 		return;
 	}
 

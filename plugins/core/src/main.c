@@ -20,47 +20,23 @@
 PLUGIN_API void
 initialize(daggle_instance_h instance)
 {
-	daggle_plugin_register_type(instance,
-		INT_TYPE,
-		clone_int,
-		free_int,
-		serialize_int,
-		deserialize_int);
+	daggle_plugin_register_type(instance, INT_TYPE, clone_int, free_int,
+		serialize_int, deserialize_int);
 
-	daggle_plugin_register_type(instance,
-		FLOAT_TYPE,
-		clone_float,
-		free_float,
-		serialize_float,
-		deserialize_float);
+	daggle_plugin_register_type(instance, FLOAT_TYPE, clone_float, free_float,
+		serialize_float, deserialize_float);
 
-	daggle_plugin_register_type(instance,
-		DOUBLE_TYPE,
-		clone_double,
-		free_float,
-		serialize_double,
-		deserialize_double);
+	daggle_plugin_register_type(instance, DOUBLE_TYPE, clone_double, free_float,
+		serialize_double, deserialize_double);
 
-	daggle_plugin_register_type(instance,
-		BOOL_TYPE,
-		clone_bool,
-		free_bool,
-		serialize_bool,
-		deserialize_bool);
+	daggle_plugin_register_type(instance, BOOL_TYPE, clone_bool, free_bool,
+		serialize_bool, deserialize_bool);
 
-	daggle_plugin_register_type(instance,
-		STRING_TYPE,
-		clone_string,
-		free_string,
-		serialize_string,
-		deserialize_string);
+	daggle_plugin_register_type(instance, STRING_TYPE, clone_string,
+		free_string, serialize_string, deserialize_string);
 
-	daggle_plugin_register_type(instance,
-		BYTES_TYPE,
-		clone_bytes,
-		free_bytes,
-		serialize_bytes,
-		deserialize_bytes);
+	daggle_plugin_register_type(instance, BYTES_TYPE, clone_bytes, free_bytes,
+		serialize_bytes, deserialize_bytes);
 
 	daggle_plugin_register_node(instance, "input", input);
 	daggle_plugin_register_node(instance, "math", math);

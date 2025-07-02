@@ -6,8 +6,7 @@
 #include "utility/return_macro.h"
 
 void
-data_container_init(
-	daggle_instance_h instance, data_container_t* container)
+data_container_init(daggle_instance_h instance, data_container_t* container)
 {
 	ASSERT_PARAMETER(instance);
 	ASSERT_PARAMETER(container);
@@ -18,8 +17,7 @@ data_container_init(
 }
 
 void
-data_container_init_generate(
-	daggle_instance_h instance,
+data_container_init_generate(daggle_instance_h instance,
 	data_container_t* container,
 	daggle_default_value_generator_fn default_value_gen)
 {
@@ -46,18 +44,18 @@ data_container_init_generate(
 }
 
 void
-data_container_destroy(
-	data_container_t* container)
+data_container_destroy(data_container_t* container)
 {
 	ASSERT_PARAMETER(container);
 
 	// If the value or the type info is null -> skip.
-	if(!data_container_has_value(container)) {
+	if (!data_container_has_value(container)) {
 		return;
 	}
 
 	// Call the destructor on the data.
-	daggle_data_free(container->instance, container->info->name_hash.name, container->data);
+	daggle_data_free(container->instance, container->info->name_hash.name,
+		container->data);
 
 	// Set the contents to nullptr.
 	container->data = NULL;
@@ -65,8 +63,8 @@ data_container_destroy(
 }
 
 void
-data_container_replace(
-	data_container_t* container, type_info_t* type, void* data)
+data_container_replace(data_container_t* container, type_info_t* type,
+	void* data)
 {
 	ASSERT_PARAMETER(container);
 
@@ -79,8 +77,7 @@ data_container_replace(
 }
 
 bool
-data_container_has_value(
-	const data_container_t* container)
+data_container_has_value(const data_container_t* container)
 {
 	ASSERT_PARAMETER(container);
 

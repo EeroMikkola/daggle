@@ -1,10 +1,10 @@
 #ifndef DAGGLE_API_H
 #define DAGGLE_API_H
 
-#define DAGGLE_VERSION_MAJOR @MAJOR_VERSION@
-#define DAGGLE_VERSION_MINOR @MINOR_VERSION@
-#define DAGGLE_VERSION_PATCH @PATCH_VERSION@
-#define DAGGLE_ABI_VERSION @ABI_VERSION@
+#define DAGGLE_VERSION_MAJOR @MAJOR_VERSION @
+#define DAGGLE_VERSION_MINOR @MINOR_VERSION @
+#define DAGGLE_VERSION_PATCH @PATCH_VERSION @
+#define DAGGLE_ABI_VERSION @ABI_VERSION @
 
 #define DAGGLE_VERSION_STRING "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
 #define DAGGLE_VERSION                                                         \
@@ -64,13 +64,13 @@ typedef enum daggle_port_variant_e {
 
 typedef enum daggle_input_variant_e {
 	DAGGLE_INPUT_IMMUTABLE_REFERENCE, // Reference to value, freed after use
-	DAGGLE_INPUT_IMMUTABLE_COPY,	  // Copy of value, freed after use
-	DAGGLE_INPUT_MUTABLE_REFERENCE,	  // Reference to value, is
+	DAGGLE_INPUT_IMMUTABLE_COPY, // Copy of value, freed after use
+	DAGGLE_INPUT_MUTABLE_REFERENCE, // Reference to value, is
 									// DAGGLE_INPUT_MUTABLE_COPY unless this is
 									// only port, user must free or pass forward
 	DAGGLE_INPUT_MUTABLE_COPY, // Copy of value, user must free or pass forward
-} daggle_input_variant_t;	   // When in doubt, use
-							   // DAGGLE_INPUT_IMMUTABLE_REFERENCE.
+} daggle_input_variant_t; // When in doubt, use
+						  // DAGGLE_INPUT_IMMUTABLE_REFERENCE.
 
 // MUTABLE_REFERENCE becomes MUTABLE_COPY, unless there is exactly one
 // connection, and the connection is MUTABLE_REFERENCE
@@ -92,7 +92,7 @@ typedef enum daggle_input_variant_e {
 // ### PLUGIN DEFINITIONS
 
 typedef struct daggle_plugin_interface_s {
-	void (*init)(daggle_instance_h instance, void* context); 
+	void (*init)(daggle_instance_h instance, void* context);
 	void (*shutdown)(daggle_instance_h instance, void* context);
 
 	void* context;
@@ -100,10 +100,12 @@ typedef struct daggle_plugin_interface_s {
 
 typedef struct daggle_plugin_source_s {
 	char* id; // Null terminated string
-	char** dependencies; // Array of null-terminated strings, last element is NULL. 
-	uint32_t abi; 
+	char**
+		dependencies; // Array of null-terminated strings, last element is NULL.
+	uint32_t abi;
 
-	void (*load)(struct daggle_plugin_source_s* source, daggle_plugin_interface_t* out_interface); // Load plugin interface
+	void (*load)(struct daggle_plugin_source_s* source,
+		daggle_plugin_interface_t* out_interface); // Load plugin interface
 	void (*dispose)(struct daggle_plugin_source_s* source);
 
 	void* context;
@@ -162,9 +164,7 @@ typedef void (*daggle_data_serialize_fn)(daggle_instance_h instance,
  * original instance.
  * */
 typedef void (*daggle_data_deserialize_fn)(daggle_instance_h instance,
-	const unsigned char* bin,
-	uint64_t len,
-	void** target);
+	const unsigned char* bin, uint64_t len, void** target);
 
 // ### MISCELLANEOUS FUNCTIONS
 
@@ -187,8 +187,7 @@ daggle_get_abi(void);
  * May be called within daggle_plugin_apply_fn or equivalent.
  * */
 DAGGLE_API daggle_error_code_t
-daggle_plugin_register_node(daggle_instance_h instance,
-	const char* node_type,
+daggle_plugin_register_node(daggle_instance_h instance, const char* node_type,
 	daggle_node_declare_fn declare);
 
 /**
@@ -200,10 +199,8 @@ daggle_plugin_register_node(daggle_instance_h instance,
  * May be called within daggle_plugin_apply_fn or equivalent.
  * */
 DAGGLE_API daggle_error_code_t
-daggle_plugin_register_type(daggle_instance_h instance,
-	const char* data_type,
-	daggle_data_clone_fn cloner,
-	daggle_data_free_fn freer,
+daggle_plugin_register_type(daggle_instance_h instance, const char* data_type,
+	daggle_data_clone_fn cloner, daggle_data_free_fn freer,
 	daggle_data_serialize_fn serializer,
 	daggle_data_deserialize_fn deserializer);
 
@@ -211,7 +208,8 @@ daggle_plugin_register_type(daggle_instance_h instance,
 
 /** @brief Create a Daggle instance */
 DAGGLE_API daggle_error_code_t
-daggle_instance_create(daggle_plugin_source_t** plugins, uint64_t num_plugins, daggle_instance_h* out_instance);
+daggle_instance_create(daggle_plugin_source_t** plugins, uint64_t num_plugins,
+	daggle_instance_h* out_instance);
 
 /**
  * @brief Free a Daggle instance
@@ -224,7 +222,7 @@ daggle_instance_free(daggle_instance_h instance);
 // SOURCE
 
 DAGGLE_API daggle_error_code_t
-daggle_plugin_source_create_from_file(const char* path, 
+daggle_plugin_source_create_from_file(const char* path,
 	daggle_plugin_source_t* out_plugin_source);
 
 // ### DATA SERIALIZATION
@@ -245,8 +243,7 @@ daggle_data_serialize(daggle_instance_h instance, const char* data_type,
 	const void* data, unsigned char** out_bin, uint64_t* out_len);
 
 DAGGLE_API daggle_error_code_t
-daggle_data_get_type_handlers(daggle_instance_h instance,
-	const char* data_type,
+daggle_data_get_type_handlers(daggle_instance_h instance, const char* data_type,
 	daggle_data_clone_fn* out_cloner /* nullable */,
 	daggle_data_free_fn* out_freer /* nullable */,
 	daggle_data_serialize_fn* out_serializer /* nullable */,
@@ -256,14 +253,14 @@ daggle_data_get_type_handlers(daggle_instance_h instance,
 // ### GRAPH CREATION
 DAGGLE_API daggle_error_code_t
 daggle_task_create(daggle_node_task_fn work,
-	daggle_node_task_dispose_fn dispose,
-	void* context /* nullable */, char* id, daggle_task_h* out_task);
+	daggle_node_task_dispose_fn dispose, void* context /* nullable */, char* id,
+	daggle_task_h* out_task);
 
 DAGGLE_API daggle_error_code_t
 daggle_task_depend(daggle_task_h task, daggle_task_h dependency);
 
 DAGGLE_API daggle_error_code_t
-daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks, 
+daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 	uint64_t num_tasks);
 
 // ### GRAPH EXECUTION
@@ -282,16 +279,15 @@ DAGGLE_API daggle_error_code_t
 daggle_graph_remove_node(daggle_graph_h handle, daggle_node_h node);
 
 DAGGLE_API daggle_error_code_t
-daggle_graph_get_node_by_index(daggle_graph_h handle,
-	uint64_t index, daggle_node_h* out_node);
+daggle_graph_get_node_by_index(daggle_graph_h handle, uint64_t index,
+	daggle_node_h* out_node);
 
 DAGGLE_API daggle_error_code_t
-daggle_graph_deserialize(daggle_instance_h instance,
-	const unsigned char* bin, daggle_graph_h* out_graph);
+daggle_graph_deserialize(daggle_instance_h instance, const unsigned char* bin,
+	daggle_graph_h* out_graph);
 
 DAGGLE_API daggle_error_code_t
-daggle_graph_serialize(daggle_graph_h handle,
-	unsigned char** out_bin,
+daggle_graph_serialize(daggle_graph_h handle, unsigned char** out_bin,
 	uint64_t* out_len);
 
 DAGGLE_API daggle_error_code_t
@@ -314,14 +310,12 @@ daggle_node_get_type(daggle_node_h node, const char** out_node_type);
 
 // Returns NULL if not found
 DAGGLE_API daggle_error_code_t
-daggle_node_get_port_by_name(daggle_node_h node,
-	const char* port,
+daggle_node_get_port_by_name(daggle_node_h node, const char* port,
 	daggle_port_h* out_port);
 
 // Returns NULL if out of bounds.
 DAGGLE_API daggle_error_code_t
-daggle_node_get_port_by_index(daggle_node_h node,
-	uint64_t index,
+daggle_node_get_port_by_index(daggle_node_h node, uint64_t index,
 	daggle_port_h* out_port);
 
 // ### NODE EXTENSIONS
@@ -335,14 +329,12 @@ daggle_node_get_graph(daggle_node_h node, daggle_graph_h* out_graph);
 // ### NODE DECLARATION
 
 DAGGLE_API daggle_error_code_t
-daggle_node_declare_input(daggle_node_h node,
-	const char* port_name,
+daggle_node_declare_input(daggle_node_h node, const char* port_name,
 	daggle_input_variant_t variant,
 	daggle_default_value_generator_fn default_value_gen);
 
 DAGGLE_API daggle_error_code_t
-daggle_node_declare_parameter(daggle_node_h node,
-	const char* port_name,
+daggle_node_declare_parameter(daggle_node_h node, const char* port_name,
 	daggle_default_value_generator_fn default_value_gen);
 
 DAGGLE_API daggle_error_code_t
@@ -360,8 +352,7 @@ daggle_node_declare_task(daggle_node_h node, daggle_node_task_fn task);
 // The previous state is not available in declaration, and must always be
 // recreated.
 DAGGLE_API daggle_error_code_t
-daggle_node_declare_context(daggle_node_h node,
-	void* context /* nullable */,
+daggle_node_declare_context(daggle_node_h node, void* context /* nullable */,
 	daggle_node_context_free_fn destructor /* nullable */
 );
 
@@ -375,8 +366,7 @@ daggle_port_disconnect(daggle_port_h port);
 
 // Returns NULL if out of bounds.
 DAGGLE_API daggle_error_code_t
-daggle_port_get_connected_port_by_index(daggle_port_h port,
-	uint64_t index,
+daggle_port_get_connected_port_by_index(daggle_port_h port, uint64_t index,
 	daggle_port_h* out_port);
 
 // ### PORT FUCNTIONS
@@ -399,8 +389,7 @@ DAGGLE_API daggle_error_code_t
 daggle_port_get_value(const daggle_port_h port, void** out_data);
 
 DAGGLE_API daggle_error_code_t
-daggle_port_set_value(const daggle_port_h port,
-	const char* data_type,
+daggle_port_set_value(const daggle_port_h port, const char* data_type,
 	void* data);
 
 #ifdef __cplusplus

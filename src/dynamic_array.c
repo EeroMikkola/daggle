@@ -5,8 +5,7 @@
 #include "utility/return_macro.h"
 
 daggle_error_code_t
-dynamic_array_init(
-	uint64_t capacity, uint64_t stride, dynamic_array_t* array)
+dynamic_array_init(uint64_t capacity, uint64_t stride, dynamic_array_t* array)
 {
 	ASSERT_PARAMETER(array);
 	ASSERT_TRUE(stride > 0, "Stride must be larger than 0");
@@ -15,7 +14,7 @@ dynamic_array_init(
 	array->length = 0;
 	array->stride = stride;
 
-	if(capacity > 0) {
+	if (capacity > 0) {
 		array->data = malloc(stride * capacity);
 		REQUIRE_ALLOCATION_DAGGLE_SUCCESSFUL(array->data);
 	} else {
@@ -26,14 +25,13 @@ dynamic_array_init(
 }
 
 void
-dynamic_array_destroy(
-	dynamic_array_t* array)
+dynamic_array_destroy(dynamic_array_t* array)
 {
 	ASSERT_PARAMETER(array);
 
 	// Data is NULL when capacity is 0.
 	// Free the data only if it exists.
-	if(array->data) {
+	if (array->data) {
 		free(array->data);
 	}
 
@@ -44,12 +42,11 @@ dynamic_array_destroy(
 }
 
 daggle_error_code_t
-dynamic_array_push(
-	dynamic_array_t* array, void* data)
+dynamic_array_push(dynamic_array_t* array, void* data)
 {
 	ASSERT_PARAMETER(array);
 
-	if(array->length == array->capacity) {
+	if (array->length == array->capacity) {
 		uint64_t new_capacity
 			= (array->capacity == 0) ? 1 : array->capacity * 2;
 		void* new_array = realloc(array->data, new_capacity * array->stride);
@@ -62,7 +59,7 @@ dynamic_array_push(
 	unsigned char* target
 		= (unsigned char*)array->data + (array->length * array->stride);
 
-	if(data) {
+	if (data) {
 		// If data is provided, copy stride-bytes from the data.
 		memcpy(target, data, array->stride);
 	} else {
@@ -76,13 +73,12 @@ dynamic_array_push(
 }
 
 void
-dynamic_array_remove(
-	dynamic_array_t* array, uint64_t index)
+dynamic_array_remove(dynamic_array_t* array, uint64_t index)
 {
 	ASSERT_PARAMETER(array);
 	ASSERT_TRUE(index < array->length, "index out of bounds");
 
-	if(index < array->length - 1) {
+	if (index < array->length - 1) {
 		unsigned char* dest
 			= (unsigned char*)array->data + (index * array->stride);
 		unsigned char* src
@@ -95,8 +91,7 @@ dynamic_array_remove(
 }
 
 void*
-dynamic_array_at(
-	const dynamic_array_t* array, uint64_t index)
+dynamic_array_at(const dynamic_array_t* array, uint64_t index)
 {
 	ASSERT_PARAMETER(array);
 	ASSERT_TRUE(index < array->length, "index out of bounds");
@@ -105,8 +100,7 @@ dynamic_array_at(
 }
 
 void
-dynamic_array_steal(
-	dynamic_array_t* array)
+dynamic_array_steal(dynamic_array_t* array)
 {
 	ASSERT_PARAMETER(array);
 
@@ -116,8 +110,7 @@ dynamic_array_steal(
 }
 
 void
-dynamic_array_resize(
-	dynamic_array_t* array, uint64_t new_capacity)
+dynamic_array_resize(dynamic_array_t* array, uint64_t new_capacity)
 {
 	ASSERT_PARAMETER(array);
 
@@ -125,7 +118,7 @@ dynamic_array_resize(
 		"New capacity may not be less than current length");
 
 	void* new_location = realloc(array->data, new_capacity * array->stride);
-	if(new_location) {
+	if (new_location) {
 		array->data = new_location;
 		array->capacity = new_capacity;
 	}

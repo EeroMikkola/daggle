@@ -4,8 +4,7 @@
 #include "string.h"
 
 void
-clone_string(
-	daggle_instance_h instance, const void* data, void** target)
+clone_string(daggle_instance_h instance, const void* data, void** target)
 {
 	uint64_t len = strlen((const char*)data);
 
@@ -17,18 +16,14 @@ clone_string(
 }
 
 void
-free_string(
-	daggle_instance_h instance, void* data)
+free_string(daggle_instance_h instance, void* data)
 {
 	free(data);
 }
 
 void
-serialize_string(
-	daggle_instance_h instance,
-	const void* data,
-	unsigned char** out_buf,
-	uint64_t* out_len)
+serialize_string(daggle_instance_h instance, const void* data,
+	unsigned char** out_buf, uint64_t* out_len)
 {
 	uint64_t len = strlen((char*)data);
 	unsigned char* buf = malloc(sizeof(unsigned char) * len);
@@ -39,13 +34,10 @@ serialize_string(
 }
 
 void
-deserialize_string(
-	daggle_instance_h instance,
-	const unsigned char* bin,
-	uint64_t len,
-	void** target)
+deserialize_string(daggle_instance_h instance, const unsigned char* bin,
+	uint64_t len, void** target)
 {
-	if(len < sizeof(char)) {
+	if (len < sizeof(char)) {
 		return;
 	}
 

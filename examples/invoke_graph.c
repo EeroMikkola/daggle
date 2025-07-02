@@ -52,7 +52,7 @@ main(void)
 	daggle_plugin_source_create_from_file(CORE_PATH, &core_source);
 	daggle_plugin_source_create_from_file(GRAPH_PATH, &graph_source);
 
-	daggle_plugin_source_t* plugins[] = {&core_source, &graph_source};
+	daggle_plugin_source_t* plugins[] = { &core_source, &graph_source };
 
 	daggle_instance_h instance;
 	daggle_instance_create(plugins, 2, &instance);

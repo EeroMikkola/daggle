@@ -9,10 +9,8 @@
 
 // Writes the input port address to out_target and output to out_source.
 daggle_error_code_t
-prv_sort_ports_to_source_and_target(port_t* port_a,
-	port_t* port_b,
-	port_t** out_source,
-	port_t** out_target)
+prv_sort_ports_to_source_and_target(port_t* port_a, port_t* port_b,
+	port_t** out_source, port_t** out_target)
 {
 	ASSERT_PARAMETER(port_a);
 	ASSERT_PARAMETER(port_b);
@@ -20,14 +18,14 @@ prv_sort_ports_to_source_and_target(port_t* port_a,
 	ASSERT_OUTPUT_PARAMETER(out_source);
 	ASSERT_OUTPUT_PARAMETER(out_target);
 
-	if(port_a->port_variant == DAGGLE_PORT_OUTPUT
+	if (port_a->port_variant == DAGGLE_PORT_OUTPUT
 		&& port_b->port_variant == DAGGLE_PORT_INPUT) {
 		*out_source = port_a;
 		*out_target = port_b;
 
 		RETURN_STATUS(DAGGLE_SUCCESS);
-	} else if(port_a->port_variant == DAGGLE_PORT_INPUT
-			  && port_b->port_variant == DAGGLE_PORT_OUTPUT) {
+	} else if (port_a->port_variant == DAGGLE_PORT_INPUT
+		&& port_b->port_variant == DAGGLE_PORT_OUTPUT) {
 		*out_source = port_b;
 		*out_target = port_a;
 
@@ -50,14 +48,12 @@ daggle_port_connect(daggle_port_h port_a, daggle_port_h port_b)
 
 	node_t* source_parent = source->owner;
 	node_t* target_parent = target->owner;
-	LOG_FMT_COND_DEBUG("Connect %s of %s to %s of %s",
-		source->name_hash.name,
-		source_parent->info->name_hash.name,
-		target->name_hash.name,
+	LOG_FMT_COND_DEBUG("Connect %s of %s to %s of %s", source->name_hash.name,
+		source_parent->info->name_hash.name, target->name_hash.name,
 		target_parent->info->name_hash.name);
 
 	// If there is a pre-existing connection, remove it.
-	if(target->variant.input.link) {
+	if (target->variant.input.link) {
 		RETURN_IF_ERROR(daggle_port_disconnect(target));
 	}
 
@@ -79,16 +75,15 @@ prv_port_disconnect(port_t* port, const uint64_t* disconnection_index)
 	ASSERT_PARAMETER(port);
 
 	node_t* port_owner = port->owner;
-	LOG_FMT_COND_DEBUG("Disconnect %s %s",
-		port_owner->info->name_hash.name,
+	LOG_FMT_COND_DEBUG("Disconnect %s %s", port_owner->info->name_hash.name,
 		port->name_hash.name);
 
-	if(port->port_variant == DAGGLE_PORT_PARAMETER) {
+	if (port->port_variant == DAGGLE_PORT_PARAMETER) {
 		// Parameters can't have edges, return an error.
 		RETURN_STATUS(DAGGLE_ERROR_INCORRECT_PORT_VARIANT);
-	} else if(port->port_variant == DAGGLE_PORT_OUTPUT) {
+	} else if (port->port_variant == DAGGLE_PORT_OUTPUT) {
 		dynamic_array_t* links = &port->variant.output.links;
-		if(disconnection_index) {
+		if (disconnection_index) {
 			port_t** element = dynamic_array_at(links, *disconnection_index);
 			port_t* item = *element;
 
@@ -101,7 +96,7 @@ prv_port_disconnect(port_t* port, const uint64_t* disconnection_index)
 			// An outgoing edge was not sepcified. Disconnect every conencted
 			// edge. Due to the way dynamic array was implemented, it makes more
 			// sense to disconnect the ports in a reverse order.
-			for(int i = links->length - 1; i >= 0; --i) {
+			for (int i = links->length - 1; i >= 0; --i) {
 				port_t** element = dynamic_array_at(links, i);
 				port_t* item = *element;
 
@@ -115,19 +110,19 @@ prv_port_disconnect(port_t* port, const uint64_t* disconnection_index)
 
 			RETURN_STATUS(DAGGLE_SUCCESS);
 		}
-	} else if(port->port_variant == DAGGLE_PORT_INPUT) {
+	} else if (port->port_variant == DAGGLE_PORT_INPUT) {
 		// Get the output (source) port of the edge.
 		port_t* link = port->variant.input.link;
 
 		// Return if the port does not have an edge to disconnect.
-		if(!link) {
+		if (!link) {
 			RETURN_STATUS(DAGGLE_SUCCESS);
 		}
 
 		// Get the list of connected input (target) ports of the source port.
 		dynamic_array_t* links = &link->variant.output.links;
 
-		if(disconnection_index) {
+		if (disconnection_index) {
 			// Remove link from the target.
 			port->variant.input.link = NULL;
 
@@ -139,11 +134,11 @@ prv_port_disconnect(port_t* port, const uint64_t* disconnection_index)
 			// Get the index of the input port in the edge list of the
 			// connected output port. If it is found (it definitely should),
 			// call this function with the index of the port.
-			for(uint64_t i = 0; i < links->length; ++i) {
+			for (uint64_t i = 0; i < links->length; ++i) {
 				port_t** element = dynamic_array_at(links, i);
 				port_t* item = *element;
 
-				if(item != link) {
+				if (item != link) {
 					continue;
 				}
 
@@ -168,8 +163,7 @@ daggle_port_disconnect(daggle_port_h port)
 }
 
 daggle_error_code_t
-daggle_port_get_connected_port_by_index(daggle_port_h port,
-	uint64_t index,
+daggle_port_get_connected_port_by_index(daggle_port_h port, uint64_t index,
 	daggle_port_h* out_port)
 {
 	REQUIRE_PARAMETER(port);
@@ -177,11 +171,11 @@ daggle_port_get_connected_port_by_index(daggle_port_h port,
 
 	port_t* internal_port = port;
 
-	switch(internal_port->port_variant) {
+	switch (internal_port->port_variant) {
 	case DAGGLE_PORT_PARAMETER:
 		RETURN_STATUS(DAGGLE_ERROR_INCORRECT_PORT_VARIANT);
 	case DAGGLE_PORT_INPUT:
-		if(index != 0) {
+		if (index != 0) {
 			*out_port = NULL;
 		} else {
 			*out_port = internal_port->variant.input.link;
@@ -189,7 +183,7 @@ daggle_port_get_connected_port_by_index(daggle_port_h port,
 
 		RETURN_STATUS(DAGGLE_SUCCESS);
 	case DAGGLE_PORT_OUTPUT:
-		if(index >= internal_port->variant.output.links.length) {
+		if (index >= internal_port->variant.output.links.length) {
 			*out_port = NULL;
 		} else {
 			*out_port
@@ -258,13 +252,13 @@ daggle_port_get_value_data_type(const daggle_port_h port,
 
 	// If the port is input and the input has an edge with data,
 	// return the type of the edge-provided data.
-	if(port_impl->port_variant == DAGGLE_PORT_INPUT
+	if (port_impl->port_variant == DAGGLE_PORT_INPUT
 		&& port_impl->variant.input.link != NULL) {
 		port_t* link = port_impl->variant.input.link;
 		data_location = &link->value;
 	}
 
-	if(!data_container_has_value(data_location)) {
+	if (!data_container_has_value(data_location)) {
 		*out_data_type = "";
 		RETURN_STATUS(DAGGLE_SUCCESS);
 	}
@@ -284,7 +278,7 @@ prv_port_get_value_as_reference(port_t* port, void** out_data)
 	ASSERT_OUTPUT_PARAMETER(out_data);
 
 	// If the port does not have data, return NULL.
-	if(!data_container_has_value(&port->value)) {
+	if (!data_container_has_value(&port->value)) {
 		*out_data = NULL;
 		return;
 	}
@@ -300,17 +294,15 @@ prv_port_get_value_as_copy(port_t* port, void** out_data)
 	ASSERT_OUTPUT_PARAMETER(out_data);
 
 	// If the port does not have data, return NULL.
-	if(!data_container_has_value(&port->value)) {
+	if (!data_container_has_value(&port->value)) {
 		*out_data = NULL;
 		return;
 	}
 
 	port_t* port_impl = port;
 
-	daggle_data_clone(port->value.instance,
-		port->value.info->name_hash.name,
-		port->value.data,
-		out_data);
+	daggle_data_clone(port->value.instance, port->value.info->name_hash.name,
+		port->value.data, out_data);
 }
 
 void
@@ -330,17 +322,19 @@ prv_input_get_value(port_t* port, void** out_data)
 	// Determine which port to use as the source.
 	port_t* target_port = link ? link : port;
 
-	switch(port->variant.input.variant) {
+	switch (port->variant.input.variant) {
 	case DAGGLE_INPUT_IMMUTABLE_REFERENCE:
 		prv_port_get_value_as_reference(target_port, out_data);
 		break;
 	case DAGGLE_INPUT_IMMUTABLE_COPY:
 		LOG(LOG_TAG_WARN,
-			"Currently DAGGLE_INPUT_IMMUTABLE_COPY inputs will leak; caller " "should free the received data, or prefer " "DAGGLE_INPUT_MUTABLE_COPY");
+			"Currently DAGGLE_INPUT_IMMUTABLE_COPY inputs will leak; caller "
+			"should free the received data, or prefer "
+			"DAGGLE_INPUT_MUTABLE_COPY");
 		prv_port_get_value_as_copy(target_port, out_data);
 		break;
 	case DAGGLE_INPUT_MUTABLE_REFERENCE:
-		if(!link || link->variant.output.links.length == 1) {
+		if (!link || link->variant.output.links.length == 1) {
 			// Steal the data
 			*out_data = link->value.data;
 			link->value.data = NULL;
@@ -363,7 +357,7 @@ daggle_port_get_value(const daggle_port_h port, void** out_data)
 
 	port_t* port_impl = port;
 
-	switch(port_impl->port_variant) {
+	switch (port_impl->port_variant) {
 	case DAGGLE_PORT_INPUT:
 		prv_input_get_value(port_impl, out_data);
 		break;
@@ -379,19 +373,18 @@ daggle_port_get_value(const daggle_port_h port, void** out_data)
 }
 
 daggle_error_code_t
-daggle_port_set_value(const daggle_port_h port,
-	const char* data_type,
+daggle_port_set_value(const daggle_port_h port, const char* data_type,
 	void* data)
 {
 	REQUIRE_PARAMETER(port);
 	REQUIRE_PARAMETER(data_type);
 
 	// TODO: Critical! Return error if node is currently being declared.
-	// If a port is being set, it will run compute declarations twice 
+	// If a port is being set, it will run compute declarations twice
 	// (potentially loops infinitely), breaking it.
 
 	// TODO: Ensure data type is allowed for the port.
-	// Which means implementing some sort of port data type constraint system, 
+	// Which means implementing some sort of port data type constraint system,
 	// and ideally data conversions.
 
 	port_t* port_impl = port;
@@ -408,37 +401,38 @@ daggle_port_set_value(const daggle_port_h port,
 
 	bool is_port_linked_input
 		= is_port_input && port_impl->variant.input.link != NULL;
-		
+
 	bool is_port_unlinked_input
 		= is_port_input && port_impl->variant.input.link == NULL;
 
 	bool is_subject_to_locking = is_port_param;
 
 	// Node is required to be unlocked to be modified.
-	if(is_locked && is_subject_to_locking) {
+	if (is_locked && is_subject_to_locking) {
 		RETURN_STATUS(DAGGLE_ERROR_OBJECT_LOCKED);
 	}
 
 	// If setting output outside of a node.
-	if(!is_locked && is_port_output) {
+	if (!is_locked && is_port_output) {
 		ASSERT_TRUE(false,
-			"Changing output port while not locked; allow " "if intentional " "(i.e. cache)");
+			"Changing output port while not locked; allow "
+			"if intentional "
+			"(i.e. cache)");
 		RETURN_STATUS(DAGGLE_ERROR_OBJECT_LOCKED);
 	}
 
 	// If setting linked value outside of a node.
-	if(!is_locked && is_port_linked_input) {
+	if (!is_locked && is_port_linked_input) {
 		LOG(LOG_TAG_WARN, "Setting linked input port outside of node!");
 	}
 
 	type_info_t* info;
 	RETURN_IF_ERROR(resource_container_get_type(&instance->plugin_manager.res,
-		data_type,
-		&info));
+		data_type, &info));
 
 	data_container_replace(&port_impl->value, info, data);
 
-	if(is_port_param) {
+	if (is_port_param) {
 		// A parameter was changed, should invoke node redeclaration.
 		node_compute_declarations(port_owner);
 	}

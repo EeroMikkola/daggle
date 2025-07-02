@@ -21,5 +21,5 @@ daggle_error_code_t
 ts_llist_queue_enqueue(ts_llist_queue_t* queue, void* payload);
 
 void
-ts_llist_queue_dequeue(
-	ts_llist_queue_t* queue, volatile bool* interrupt, void** out_payload);
+ts_llist_queue_dequeue(ts_llist_queue_t* queue, volatile bool* interrupt,
+	void** out_payload);
