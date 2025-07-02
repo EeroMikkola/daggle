@@ -9,6 +9,7 @@
 #include "utility/llist_queue.h"
 #include "utility/return_macro.h"
 
+// Check if a plugin with a given ID exists in the plugin source list.
 bool
 prv_is_plugin_id_in_plugins(char* plugin, daggle_plugin_source_t** plugins,
 	uint64_t num_plugins)
@@ -24,6 +25,7 @@ prv_is_plugin_id_in_plugins(char* plugin, daggle_plugin_source_t** plugins,
 	return false;
 }
 
+// Check if every dependency of a plugin is included in the plugin source list.
 bool
 prv_check_plugin_dependencies_met(daggle_plugin_source_t* plugin,
 	daggle_plugin_source_t** plugins, uint64_t num_plugins)
@@ -33,12 +35,17 @@ prv_check_plugin_dependencies_met(daggle_plugin_source_t* plugin,
 		return true;
 	}
 
-	char buffer[256];
+	// Note: the dependency string consists of plugin IDs separated by commas.
 
+	// Buffer to store the current dependency ID.
+	char buffer[64];
+
+	// Pointer to the first character of the currently checked dependency ID.
 	char* current_dep = plugin->dependencies;
 
 	bool should_stop = false;
 	while (!should_stop) {
+		// Get pointer to the next delimiter
 		char* delimiter = strchr(current_dep, ',');
 
 		// If there are no delimiters left, the current dependency is the last.
@@ -47,9 +54,11 @@ prv_check_plugin_dependencies_met(daggle_plugin_source_t* plugin,
 			should_stop = true;
 		}
 
+		// Copy the dependency ID to the buffer and add a null terminator.
 		memcpy(buffer, current_dep, delimiter - current_dep);
 		buffer[delimiter - current_dep] = '\0';
 
+		// Check if the depended plugin is in the plugin source list.
 		if (!prv_is_plugin_id_in_plugins(buffer, plugins, num_plugins)) {
 			LOG_FMT(LOG_TAG_ERROR,
 				"Plugin \"%s\" required by plugin \"%s\" not found", buffer,
@@ -57,12 +66,14 @@ prv_check_plugin_dependencies_met(daggle_plugin_source_t* plugin,
 			return false;
 		}
 
+		// Change the current dependency to the next plugin in the string.
 		current_dep = delimiter + 1;
 	}
 
 	return true;
 }
 
+// Check if all the plugins have their dependencies met.
 bool
 prv_check_plugins_dependencies_met(daggle_plugin_source_t** plugins,
 	uint64_t num_plugins)
@@ -87,16 +98,21 @@ plugin_manager_init(daggle_instance_h instance,
 	ASSERT_PARAMETER(instance);
 	ASSERT_OUTPUT_PARAMETER(out_plugin_manager);
 
-	out_plugin_manager->instance = instance;
-	resource_container_init(&out_plugin_manager->res);
-
-	dynamic_array_init(0, sizeof(daggle_plugin_interface_t),
-		&out_plugin_manager->plugin_instances);
-
 	if (!prv_check_plugins_dependencies_met(plugins, num_plugins)) {
 		RETURN_STATUS(DAGGLE_ERROR_MISSING_DEPENDENCY);
 	}
 
+	// Set the reference to daggle instance.
+	out_plugin_manager->instance = instance;
+
+	// Initialize resource container.
+	resource_container_init(&out_plugin_manager->res);
+
+	// Initialize the plugin instance array to store the loaded plugins.
+	dynamic_array_init(num_plugins, sizeof(daggle_plugin_interface_t),
+		&out_plugin_manager->plugin_instances);
+
+	// Load plugin sources to get the plugin instances.
 	for (uint64_t i = 0; i < num_plugins; ++i) {
 		daggle_plugin_source_t* plugin_source = plugins[i];
 
@@ -109,11 +125,12 @@ plugin_manager_init(daggle_instance_h instance,
 	// TODO: Topologically sort plugins
 
 	for (uint32_t i = 0; i < out_plugin_manager->plugin_instances.length; ++i) {
-		daggle_plugin_interface_t* plugin
+		daggle_plugin_interface_t* plugin_instance
 			= dynamic_array_at(&out_plugin_manager->plugin_instances, i);
 
-		daggle_instance_h instance = out_plugin_manager->instance;
-		plugin->init(instance, plugin->context);
+		// Initialize the plugin instance. This is where the plugins then call
+		// daggle_plugin_register_X functions to register their contents.
+		plugin_instance->init(instance, plugin_instance->context);
 	}
 
 	RETURN_STATUS(DAGGLE_SUCCESS);

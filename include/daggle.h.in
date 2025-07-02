@@ -98,16 +98,37 @@ typedef struct daggle_plugin_interface_s {
 	void* context;
 } daggle_plugin_interface_t;
 
+/** @brief Struct containing info about a plugin and function to create an
+ * instance of it */
 typedef struct daggle_plugin_source_s {
-	char* id; // Null terminated string
-	char* dependencies; // Null terminated string, deps comma-separated
+	/** @brief The ID of the plugin, null terminated */
+	char* id;
+
+	/** @brief List of dependency plugin IDs, comma-separated null terminated */
+	char* dependencies;
+
+	/** @brief The DAGGLE_ABI_VERSION the plugin was built for */
 	uint32_t abi;
 
-	void (*load)(struct daggle_plugin_source_s* source,
-		daggle_plugin_interface_t* out_interface); // Load plugin interface
-	void (*dispose)(struct daggle_plugin_source_s* source);
-
+	/** @brief Optional data, which can be used for more complex loading behavior */
 	void* context;
+
+	/** 
+	 * @brief Function which creates an instance of the plugin
+	 * 
+	 * @param[in] source pointer to this struct instance
+	 * @param[out] out_interface pointer to the daggle_plugin_interface_t where 
+	 * to write the loaded plugin instance
+	 */
+	void (*load)(struct daggle_plugin_source_s* source,
+		daggle_plugin_interface_t* out_interface);
+
+	/**
+	 * @brief Function which frees the variables of this struct 
+	 * 
+	 * @param[in] source pointer to this struct instance
+	*/
+	void (*dispose)(struct daggle_plugin_source_s* source);
 } daggle_plugin_source_t;
 
 // ### NODE AND PORT RELATED DEFINITIONS
