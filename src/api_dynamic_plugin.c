@@ -1,7 +1,7 @@
 #include "plugin_manager.h"
+#include "stdbool.h"
 #include "stdlib.h"
 #include "string.h"
-#include "stdbool.h"
 #include "utility/return_macro.h"
 
 #include <daggle/daggle.h>
@@ -107,15 +107,6 @@ prv_dp_source_impl_context_free(struct daggle_plugin_source_s* source)
 	free(context);
 }
 
-void
-prv_duplicate_string(char* value, char** out_target)
-{
-	uint32_t id_len = strlen(value);
-	*out_target = malloc(sizeof(char) * id_len + 1);
-	memcpy(*out_target, value, id_len);
-	(*out_target)[id_len] = '\0';
-}
-
 daggle_error_code_t
 prv_parse_file_ini_next(FILE* file, char* section_buffer, char* key_buffer,
 	char* value_buffer, bool* out_stop)
@@ -173,12 +164,14 @@ prv_parse_file_ini_next(FILE* file, char* section_buffer, char* key_buffer,
 }
 
 daggle_error_code_t
-prv_dp_parse_plugin(const char* path,
-	daggle_plugin_source_t* out_source, char** out_binary_path)
+prv_load_and_parse_plugin_file(const char* path, char** out_binary_path, char** out_id,
+	char** out_deps, uint32_t* out_abi)
 {
 	ASSERT_PARAMETER(path);
-	ASSERT_PARAMETER(out_source);
-	ASSERT_PARAMETER(out_binary_path);
+	ASSERT_OUTPUT_PARAMETER(out_binary_path);
+	ASSERT_OUTPUT_PARAMETER(out_id);
+	ASSERT_OUTPUT_PARAMETER(out_deps);
+	ASSERT_OUTPUT_PARAMETER(out_abi);
 
 	FILE* file = fopen(path, "r");
 
@@ -187,56 +180,68 @@ prv_dp_parse_plugin(const char* path,
 		RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
 	}
 
-	// Initialize source with default values.
-	out_source->id = NULL;
-	out_source->dependencies = NULL;
-	out_source->abi = UINT32_MAX;
+	// Initialize variables to parse.
+	char* bin_path = NULL;
+	char* id = NULL;
+	char* dependencies = NULL;
+	uint32_t abi = UINT32_MAX;
 
+	// Initialize string buffers.
 	char section[256];
 	char key[256];
 	char value[256];
 
-	// Set strings to null.
-	memset(section, 0, 256);
-	memset(key, 0, 256);
-	memset(value, 0, 256);
-
 	bool should_stop = false;
 	do {
-		daggle_error_code_t error = prv_parse_file_ini_next(file, section, key, value, &should_stop);
-		if(error) {
+		daggle_error_code_t error
+			= prv_parse_file_ini_next(file, section, key, value, &should_stop);
+		if (error) {
 			RETURN_STATUS(error);
 		}
 
-		if(should_stop) {
+		if (should_stop) {
 			break;
 		}
 
 		if (strcmp(section, "plugin") == 0) {
 			if (strcmp(key, "id") == 0) {
-				prv_duplicate_string(value,
-					&out_source->id);
+				id = strdup(value);
 			}
 			if (strcmp(key, "abi") == 0) {
-				uint32_t abi = strtoul(value, NULL, 10);
-				out_source->abi = abi;
+				abi = strtoul(value, NULL, 10);
 			}
 			if (strcmp(key, "dependencies") == 0) {
-				prv_duplicate_string(value, &out_source->dependencies);
+				dependencies = strdup(value);
 			}
 		} else if (strcmp(section, "bin") == 0) {
 			if (strcmp(key, PLATFORM_CODE) == 0) {
-				char* bin_path;
-				prv_duplicate_string(value, &bin_path);
-
-				// TODO: Validate binary path
-
-				*out_binary_path = bin_path;
+				bin_path = strdup(value);
 			}
 		}
-	} while(!should_stop);
+	} while (!should_stop);
 
 	fclose(file);
+
+	// If the plugin file did not define plugin binary path
+	if (!bin_path) {
+		LOG(LOG_TAG_ERROR, "Plugin binary for " PLATFORM_CODE " not defined");
+		RETURN_STATUS(DAGGLE_ERROR_PARSE);
+	}
+
+	if (!id) {
+		LOG(LOG_TAG_ERROR, "Plugin ID not defined");
+		RETURN_STATUS(DAGGLE_ERROR_PARSE);
+	}
+
+	if (abi == UINT32_MAX) {
+		LOG(LOG_TAG_ERROR, "Expected daggle ABI version not defined");
+		RETURN_STATUS(DAGGLE_ERROR_PARSE);
+	}
+
+	*out_binary_path = bin_path;
+	*out_id = id;
+	*out_deps = dependencies;
+	*out_abi = abi;
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }
@@ -253,17 +258,12 @@ prv_dynamic_plugin_create_source(const char* path,
 
 	// Load plugin id, versions, dependencies, binary path
 	daggle_error_code_t error
-		= prv_dp_parse_plugin(path, &plugin_descriptor, &binary_path);
+		= prv_load_and_parse_plugin_file(path, &binary_path, &plugin_descriptor.id,
+			&plugin_descriptor.dependencies, &plugin_descriptor.abi);
 
 	if (error != DAGGLE_SUCCESS) {
 		LOG(LOG_TAG_ERROR, "Plugin parsing failed");
 		RETURN_STATUS(error);
-	}
-
-	// If the plugin file did not define plugin binary path
-	if (!binary_path) {
-		LOG(LOG_TAG_ERROR, "Plugin binary for " PLATFORM_CODE " is missing");
-		RETURN_STATUS(DAGGLE_ERROR_PARSE);
 	}
 
 	// TODO: validate binary_path
