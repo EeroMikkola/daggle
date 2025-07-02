@@ -1,11 +1,83 @@
 #include "plugin_manager.h"
 
 #include "resource_container.h"
+#include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "utility/hash.h"
 #include "utility/llist_queue.h"
 #include "utility/return_macro.h"
+
+bool
+prv_is_plugin_id_in_plugins(char* plugin, daggle_plugin_source_t** plugins,
+	uint64_t num_plugins)
+{
+	for (uint64_t i = 0; i < num_plugins; ++i) {
+		daggle_plugin_source_t* plugin_source = plugins[i];
+
+		if (strcmp(plugin, plugin_source->id) == 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool
+prv_check_plugin_dependencies_met(daggle_plugin_source_t* plugin,
+	daggle_plugin_source_t** plugins, uint64_t num_plugins)
+{
+	// If the plugin does not have dependencies, it is good to go.
+	if (!plugin->dependencies) {
+		return true;
+	}
+
+	char buffer[256];
+
+	char* current_dep = plugin->dependencies;
+
+	bool should_stop = false;
+	while (!should_stop) {
+		char* delimiter = strchr(current_dep, ',');
+
+		// If there are no delimiters left, the current dependency is the last.
+		if (!delimiter) {
+			delimiter = strchr(current_dep, '\0');
+			should_stop = true;
+		}
+
+		memcpy(buffer, current_dep, delimiter - current_dep);
+		buffer[delimiter - current_dep] = '\0';
+
+		if (!prv_is_plugin_id_in_plugins(buffer, plugins, num_plugins)) {
+			LOG_FMT(LOG_TAG_ERROR,
+				"Plugin \"%s\" required by plugin \"%s\" not found", buffer,
+				plugin->id);
+			return false;
+		}
+
+		current_dep = delimiter + 1;
+	}
+
+	return true;
+}
+
+bool
+prv_check_plugins_dependencies_met(daggle_plugin_source_t** plugins,
+	uint64_t num_plugins)
+{
+	for (uint64_t i = 0; i < num_plugins; ++i) {
+		daggle_plugin_source_t* plugin_source = plugins[i];
+
+		if (!prv_check_plugin_dependencies_met(plugin_source, plugins,
+				num_plugins)) {
+			return false;
+		}
+	}
+
+	return true;
+}
 
 daggle_error_code_t
 plugin_manager_init(daggle_instance_h instance,
@@ -21,13 +93,15 @@ plugin_manager_init(daggle_instance_h instance,
 	dynamic_array_init(0, sizeof(daggle_plugin_interface_t),
 		&out_plugin_manager->plugin_instances);
 
-	// TODO: Validate dependencies
+	if (!prv_check_plugins_dependencies_met(plugins, num_plugins)) {
+		RETURN_STATUS(DAGGLE_ERROR_MISSING_DEPENDENCY);
+	}
 
 	for (uint64_t i = 0; i < num_plugins; ++i) {
-		daggle_plugin_source_t* plugin = plugins[i];
+		daggle_plugin_source_t* plugin_source = plugins[i];
 
 		daggle_plugin_interface_t instance;
-		plugin->load(plugin, &instance);
+		plugin_source->load(plugin_source, &instance);
 
 		dynamic_array_push(&out_plugin_manager->plugin_instances, &instance);
 	}
