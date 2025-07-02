@@ -1,6 +1,7 @@
 [plugin]
 id=graph
 abi=1
+dependencies=core
 
 [bin]
 win=libgraph.dll

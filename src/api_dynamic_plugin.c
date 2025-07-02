@@ -1,6 +1,7 @@
 #include "plugin_manager.h"
 #include "stdlib.h"
 #include "string.h"
+#include "stdbool.h"
 #include "utility/return_macro.h"
 
 #include <daggle/daggle.h>
@@ -107,7 +108,7 @@ prv_dp_source_impl_context_free(struct daggle_plugin_source_s* source)
 }
 
 void
-prv_dp_parse_plugin_parse_str(char* value, char** out_target)
+prv_duplicate_string(char* value, char** out_target)
 {
 	uint32_t id_len = strlen(value);
 	*out_target = malloc(sizeof(char) * id_len + 1);
@@ -115,34 +116,69 @@ prv_dp_parse_plugin_parse_str(char* value, char** out_target)
 	(*out_target)[id_len] = '\0';
 }
 
-typedef enum parse_token_s {
-	TABLE_START,
-	TABLE_END,
-	PAIR_START,
-	PAIR_END,
-	KEY_START,
-	KEY_END,
-	VALUE_START,
-	VALUE_END,
-	STRING_START,
-	STRING_END,
-	LIT_STRING_START,
-	LIT_STRING_END,
-	ARRAY_START,
-	ARRAY_END
-} parse_token_t;
+daggle_error_code_t
+prv_parse_file_ini_next(FILE* file, char* section_buffer, char* key_buffer,
+	char* value_buffer, bool* out_stop)
+{
+	char line[256];
+	while (fgets(line, sizeof(line), file)) {
+		// Skip empty lines
+		if (line[0] == '\n') {
+			continue;
+		}
+
+		// Skip comments
+		if (line[0] == '#') {
+			continue;
+		}
+
+		// Get the length of the current line
+		uint32_t line_len = strlen(line);
+
+		// If the line is a section, copy the section name into section buffer.
+		if (line[0] == '[') {
+			memcpy(section_buffer, line + 1, line_len - 3);
+			section_buffer[line_len - 3] = '\0';
+			continue;
+		}
+
+		char* delimiter = strchr(line, '=');
+
+		if (!delimiter) {
+			LOG(LOG_TAG_ERROR, "Failed to find a delimiter");
+			*out_stop = true;
+			RETURN_STATUS(DAGGLE_ERROR_PARSE);
+		}
+
+		// TODO: instead of this: "k=v", support this: "  k = v "
+		uint32_t key_len = delimiter - line;
+		memcpy(key_buffer, line, key_len);
+		key_buffer[key_len] = '\0';
+
+		// If the line ends with newline, ignore the last character
+		uint32_t value_len = line_len - key_len - 1;
+		if (delimiter[value_len] == '\n') {
+			value_len -= 1;
+		}
+
+		memcpy(value_buffer, delimiter + 1, value_len);
+		value_buffer[value_len] = '\0';
+
+		*out_stop = false;
+		RETURN_STATUS(DAGGLE_SUCCESS);
+	}
+
+	*out_stop = true;
+	RETURN_STATUS(DAGGLE_SUCCESS);
+}
 
 daggle_error_code_t
 prv_dp_parse_plugin(const char* path,
-	daggle_plugin_source_t* out_plugin_descriptor, char** out_binary_path)
+	daggle_plugin_source_t* out_source, char** out_binary_path)
 {
 	ASSERT_PARAMETER(path);
-	ASSERT_PARAMETER(out_plugin_descriptor);
+	ASSERT_PARAMETER(out_source);
 	ASSERT_PARAMETER(out_binary_path);
-
-	dynamic_array_t dependencies;
-	daggle_error_code_t error
-		= dynamic_array_init(0, sizeof(char*), &dependencies);
 
 	FILE* file = fopen(path, "r");
 
@@ -151,97 +187,54 @@ prv_dp_parse_plugin(const char* path,
 		RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
 	}
 
-	char line[256];
+	// Initialize source with default values.
+	out_source->id = NULL;
+	out_source->dependencies = NULL;
+	out_source->abi = UINT32_MAX;
 
-	char category[256];
+	char section[256];
 	char key[256];
 	char value[256];
 
-	// Implicitly use plugin as the default category.
-	// Equivalent to starting the file with: [plugin]
-	strcpy(category, "plugin");
+	// Set strings to null.
+	memset(section, 0, 256);
+	memset(key, 0, 256);
+	memset(value, 0, 256);
 
-	while (fgets(line, sizeof(line), file)) {
-		if (line[0] == '\n') {
-			continue;
-		}
-		uint32_t line_len = strlen(line);
-
-		if (line[0] == '[') {
-			memcpy(category, line + 1, line_len - 3);
-			category[line_len - 3] = '\0';
-			continue;
+	bool should_stop = false;
+	do {
+		daggle_error_code_t error = prv_parse_file_ini_next(file, section, key, value, &should_stop);
+		if(error) {
+			RETURN_STATUS(error);
 		}
 
-		char* boundary = strchr(line, '=');
-
-		if (!boundary) {
-			LOG_FMT(LOG_TAG_ERROR, "Could not find \'=\' on line \"%s\"", line);
-			RETURN_STATUS(DAGGLE_ERROR_PARSE);
+		if(should_stop) {
+			break;
 		}
 
-		// TODO: instead of this: "k=v", support this: "  k = v "
-		uint32_t key_len = boundary - line;
-		memcpy(key, line, key_len);
-		key[key_len] = '\0';
-
-		// If the line ends with newline, ignore the last character
-		uint32_t value_len = line_len - key_len - 1;
-		if (boundary[value_len] == '\n') {
-			value_len -= 1;
-		}
-
-		memcpy(value, boundary + 1, value_len);
-		value[value_len] = '\0';
-
-		if (strcmp(category, "plugin") == 0) {
+		if (strcmp(section, "plugin") == 0) {
 			if (strcmp(key, "id") == 0) {
-				prv_dp_parse_plugin_parse_str(value,
-					&out_plugin_descriptor->id);
+				prv_duplicate_string(value,
+					&out_source->id);
 			}
 			if (strcmp(key, "abi") == 0) {
 				uint32_t abi = strtoul(value, NULL, 10);
-				out_plugin_descriptor->abi = abi;
-				continue;
+				out_source->abi = abi;
 			}
 			if (strcmp(key, "dependencies") == 0) {
-				// parse array
-				// char* id;
-				// prv_dp_parse_plugin_parse_str(key, &id);
-				// dynamic_array_push(&dependencies, &id);
-				continue;
+				prv_duplicate_string(value, &out_source->dependencies);
 			}
-		} else if (strcmp(category, "bin") == 0) {
+		} else if (strcmp(section, "bin") == 0) {
 			if (strcmp(key, PLATFORM_CODE) == 0) {
 				char* bin_path;
-				prv_dp_parse_plugin_parse_str(value, &bin_path);
+				prv_duplicate_string(value, &bin_path);
 
 				// TODO: Validate binary path
 
 				*out_binary_path = bin_path;
 			}
 		}
-	}
-
-	// Optionally, remove the unused capacity from the array. Not strictly
-	// required.
-	if (dependencies.capacity != dependencies.length) {
-		dynamic_array_resize(&dependencies, dependencies.length);
-	}
-
-	// Move the dependency array ownership from dynamic array to plugin
-	// descriptor
-	if (dependencies.length == 0) {
-		out_plugin_descriptor->dependencies = NULL;
-	} else {
-		dynamic_array_push(&dependencies, NULL);
-		out_plugin_descriptor->dependencies = dependencies.data;
-		dynamic_array_steal(&dependencies);
-	}
-
-	// Destroy the dynamic array, not strictly required, as stealing essentially
-	// resets it.
-	dynamic_array_destroy(&dependencies);
+	} while(!should_stop);
 
 	fclose(file);
 

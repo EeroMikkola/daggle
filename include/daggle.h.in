@@ -49,10 +49,10 @@ typedef enum daggle_error_code_e {
 	DAGGLE_ERROR_NULL_PARAMETER,
 	DAGGLE_ERROR_NULL_OUTPUT_PARAMETER,
 	DAGGLE_ERROR_PARSE,
+	DAGGLE_ERROR_MISSING_DEPENDENCY,
 	DAGGLE_ERROR_MEMORY_ALLOCATION,
 	DAGGLE_ERROR_INCORRECT_PORT_VARIANT,
 	DAGGLE_ERROR_OBJECT_LOCKED,
-	DAGGLE_ERROR_DIFFERENT_ENGINE // unused
 } daggle_error_code_t;
 
 /** @brief Port variant enum, determines the properties of a port. */
@@ -100,8 +100,7 @@ typedef struct daggle_plugin_interface_s {
 
 typedef struct daggle_plugin_source_s {
 	char* id; // Null terminated string
-	char**
-		dependencies; // Array of null-terminated strings, last element is NULL.
+	char* dependencies; // Null terminated string, deps comma-separated
 	uint32_t abi;
 
 	void (*load)(struct daggle_plugin_source_s* source,
