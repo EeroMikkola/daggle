@@ -14,6 +14,7 @@ set(PATCH_VERSION 0)
 set(ABI_VERSION 1)
 
 set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ################################################################################
 
