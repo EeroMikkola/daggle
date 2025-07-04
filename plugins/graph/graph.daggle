@@ -1,11 +1,9 @@
 [plugin]
 id=graph
+abi=1
+dependencies=core
 
-[dependencies]
-daggle=1
-
-[linux]
-bin=libgraph.so
-
-[osx]
-bin=libgraph.dylib
+[bin]
+win=libgraph.dll
+linux=libgraph.so
+mac=libgraph.dylib

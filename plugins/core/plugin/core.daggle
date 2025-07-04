@@ -1,12 +1,8 @@
 [plugin]
 id=core
-version=1
+abi=1
 
-[dependencies]
-daggle=1
-
-[linux]
-bin=libcore.so
-
-[osx]
-bin=libcore.dylib
+[bin]
+win=libcore.dll
+linux=libcore.so
+mac=libcore.dylib

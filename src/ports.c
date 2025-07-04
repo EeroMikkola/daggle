@@ -1,6 +1,5 @@
 #include "ports.h"
 
-#include "instance.h"
 #include "node.h"
 #include "resource_container.h"
 #include "stdlib.h"
@@ -28,27 +27,31 @@ port_destroy(port_t* port)
 
 void
 port_init(daggle_node_h node, const char* port_name,
-	daggle_port_variant_t variant, port_t* port)
+	daggle_port_variant_t variant, port_t* out_port)
 {
 	ASSERT_PARAMETER(node);
 	ASSERT_PARAMETER(port_name);
-	ASSERT_PARAMETER(port);
+	ASSERT_PARAMETER(out_port);
 
-	name_with_hash_t nh
-		= { .name = strdup(port_name), .hash = fnv1a_32(port_name) };
-
-	port->name_hash = nh;
-	port->owner = node;
-	port->port_variant = variant;
+	port_t port = {
+		.name_hash = { 
+			.name = strdup(port_name), 
+			.hash = fnv1a_32(port_name) 
+		},
+		.owner = node,
+		.port_variant = variant
+	};
 
 	daggle_instance_h instance;
 	daggle_graph_get_daggle(((node_t*)node)->graph, &instance);
-	data_container_init(instance, &port->value);
+	data_container_init(instance, &port.value);
 
 	if (variant == DAGGLE_PORT_INPUT) {
-		port->variant.input.link = NULL;
-		port->variant.input.variant = DAGGLE_INPUT_IMMUTABLE_REFERENCE;
+		port.variant.input.link = NULL;
+		port.variant.input.variant = DAGGLE_INPUT_IMMUTABLE_REFERENCE;
 	} else if (variant == DAGGLE_PORT_OUTPUT) {
-		dynamic_array_init(0, sizeof(port_t*), &port->variant.output.links);
+		dynamic_array_init(0, sizeof(port_t*), &port.variant.output.links);
 	}
+
+	*out_port = port;
 }

@@ -1,4 +1,4 @@
-#include "plugin_manager.h"
+#include "stdbool.h"
 #include "stdlib.h"
 #include "string.h"
 #include "utility/return_macro.h"
@@ -19,7 +19,7 @@
 #define LOAD_LIBRARY(path) dlopen(path, RTLD_LAZY)
 #define GET_PROC_ADDRESS(handle, func) dlsym(handle, func)
 #define FREE_LIBRARY(handle) dlclose(handle)
-#define PLATFORM_CODE "osx"
+#define PLATFORM_CODE "mac"
 #endif
 #ifdef __linux__
 #include "dlfcn.h"
@@ -106,26 +106,71 @@ prv_dp_source_impl_context_free(struct daggle_plugin_source_s* source)
 	free(context);
 }
 
-void
-prv_dp_parse_plugin_parse_str(char* value, char** out_target)
+daggle_error_code_t
+prv_parse_file_ini_next(FILE* file, char* section_buffer, char* key_buffer,
+	char* value_buffer, bool* out_stop)
 {
-	uint32_t id_len = strlen(value);
-	*out_target = malloc(sizeof(char) * id_len + 1);
-	memcpy(*out_target, value, id_len);
-	(*out_target)[id_len] = '\0';
+	char line[256];
+	while (fgets(line, sizeof(line), file)) {
+		// Skip empty lines
+		if (line[0] == '\n') {
+			continue;
+		}
+
+		// Skip comments
+		if (line[0] == '#') {
+			continue;
+		}
+
+		// Get the length of the current line
+		uint32_t line_len = strlen(line);
+
+		// If the line is a section, copy the section name into section buffer.
+		if (line[0] == '[') {
+			memcpy(section_buffer, line + 1, line_len - 3);
+			section_buffer[line_len - 3] = '\0';
+			continue;
+		}
+
+		char* delimiter = strchr(line, '=');
+
+		if (!delimiter) {
+			LOG(LOG_TAG_ERROR, "Failed to find a delimiter");
+			*out_stop = true;
+			RETURN_STATUS(DAGGLE_ERROR_PARSE);
+		}
+
+		// TODO: instead of this: "k=v", support this: "  k = v "
+		uint32_t key_len = delimiter - line;
+		memcpy(key_buffer, line, key_len);
+		key_buffer[key_len] = '\0';
+
+		// If the line ends with newline, ignore the last character
+		uint32_t value_len = line_len - key_len - 1;
+		if (delimiter[value_len] == '\n') {
+			value_len -= 1;
+		}
+
+		memcpy(value_buffer, delimiter + 1, value_len);
+		value_buffer[value_len] = '\0';
+
+		*out_stop = false;
+		RETURN_STATUS(DAGGLE_SUCCESS);
+	}
+
+	*out_stop = true;
+	RETURN_STATUS(DAGGLE_SUCCESS);
 }
 
 daggle_error_code_t
-prv_dp_parse_plugin(const char* path,
-	daggle_plugin_source_t* out_plugin_descriptor, char** out_binary_path)
+prv_load_and_parse_plugin_file(const char* path, char** out_binary_path, char** out_id,
+	char** out_deps, uint32_t* out_abi)
 {
 	ASSERT_PARAMETER(path);
-	ASSERT_PARAMETER(out_plugin_descriptor);
-	ASSERT_PARAMETER(out_binary_path);
-
-	dynamic_array_t dependencies;
-	daggle_error_code_t error
-		= dynamic_array_init(0, sizeof(char*), &dependencies);
+	ASSERT_OUTPUT_PARAMETER(out_binary_path);
+	ASSERT_OUTPUT_PARAMETER(out_id);
+	ASSERT_OUTPUT_PARAMETER(out_deps);
+	ASSERT_OUTPUT_PARAMETER(out_abi);
 
 	FILE* file = fopen(path, "r");
 
@@ -134,93 +179,68 @@ prv_dp_parse_plugin(const char* path,
 		RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
 	}
 
-	char line[256];
+	// Initialize variables to parse.
+	char* bin_path = NULL;
+	char* id = NULL;
+	char* dependencies = NULL;
+	uint32_t abi = UINT32_MAX;
 
-	char category[256];
+	// Initialize string buffers.
+	char section[256];
 	char key[256];
 	char value[256];
 
-	// Implicitly use plugin as the default category.
-	// Equivalent to starting the file with: [plugin]
-	strcpy(category, "plugin");
-
-	while (fgets(line, sizeof(line), file)) {
-		if (line[0] == '\n') {
-			continue;
-		}
-		uint32_t line_len = strlen(line);
-
-		if (line[0] == '[') {
-			memcpy(category, line + 1, line_len - 3);
-			category[line_len - 3] = '\0';
-			continue;
+	bool should_stop = false;
+	do {
+		daggle_error_code_t error
+			= prv_parse_file_ini_next(file, section, key, value, &should_stop);
+		if (error) {
+			RETURN_STATUS(error);
 		}
 
-		char* boundary = strchr(line, '=');
-
-		if (!boundary) {
-			LOG(LOG_TAG_ERROR, "Could not find \'=\' on line ");
-			RETURN_STATUS(DAGGLE_ERROR_PARSE);
+		if (should_stop) {
+			break;
 		}
 
-		// TODO: instead of this: "k=v", support this: "  k = v "
-		uint32_t key_len = boundary - line;
-		memcpy(key, line, key_len);
-		key[key_len] = '\0';
-
-		// If the line ends with newline, ignore the last character
-		uint32_t value_len = line_len - key_len - 1;
-		if (boundary[value_len] == '\n') {
-			value_len -= 1;
-		}
-
-		memcpy(value, boundary + 1, value_len);
-		value[value_len] = '\0';
-
-		if (strcmp(category, "plugin") == 0) {
+		if (strcmp(section, "plugin") == 0) {
 			if (strcmp(key, "id") == 0) {
-				prv_dp_parse_plugin_parse_str(value,
-					&out_plugin_descriptor->id);
+				id = strdup(value);
 			}
-		} else if (strcmp(category, PLATFORM_CODE) == 0) {
-			if (strcmp(key, "bin") == 0) {
-				prv_dp_parse_plugin_parse_str(value, out_binary_path);
+			if (strcmp(key, "abi") == 0) {
+				abi = strtoul(value, NULL, 10);
 			}
-		} else if (strcmp(category, "dependencies") == 0) {
-			uint32_t abi = strtoul(value, NULL, 10);
-			if (strcmp(key, "daggle") == 0) {
-				out_plugin_descriptor->abi = abi;
-				continue;
+			if (strcmp(key, "dependencies") == 0) {
+				dependencies = strdup(value);
 			}
-
-			char* id;
-			prv_dp_parse_plugin_parse_str(key, &id);
-
-			dynamic_array_push(&dependencies, &id);
+		} else if (strcmp(section, "bin") == 0) {
+			if (strcmp(key, PLATFORM_CODE) == 0) {
+				bin_path = strdup(value);
+			}
 		}
-	}
-
-	// Optionally, remove the unused capacity from the array. Not strictly
-	// required.
-	if (dependencies.capacity != dependencies.length) {
-		dynamic_array_resize(&dependencies, dependencies.length);
-	}
-
-	// Move the dependency array ownership from dynamic array to plugin
-	// descriptor
-	if (dependencies.length == 0) {
-		out_plugin_descriptor->dependencies = NULL;
-	} else {
-		dynamic_array_push(&dependencies, NULL);
-		out_plugin_descriptor->dependencies = dependencies.data;
-		dynamic_array_steal(&dependencies);
-	}
-
-	// Destroy the dynamic array, not strictly required, as stealing essentially
-	// resets it.
-	dynamic_array_destroy(&dependencies);
+	} while (!should_stop);
 
 	fclose(file);
+
+	// If the plugin file did not define plugin binary path
+	if (!bin_path) {
+		LOG(LOG_TAG_ERROR, "Plugin binary for " PLATFORM_CODE " not defined");
+		RETURN_STATUS(DAGGLE_ERROR_PARSE);
+	}
+
+	if (!id) {
+		LOG(LOG_TAG_ERROR, "Plugin ID not defined");
+		RETURN_STATUS(DAGGLE_ERROR_PARSE);
+	}
+
+	if (abi == UINT32_MAX) {
+		LOG(LOG_TAG_ERROR, "Expected daggle ABI version not defined");
+		RETURN_STATUS(DAGGLE_ERROR_PARSE);
+	}
+
+	*out_binary_path = bin_path;
+	*out_id = id;
+	*out_deps = dependencies;
+	*out_abi = abi;
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }
@@ -237,17 +257,12 @@ prv_dynamic_plugin_create_source(const char* path,
 
 	// Load plugin id, versions, dependencies, binary path
 	daggle_error_code_t error
-		= prv_dp_parse_plugin(path, &plugin_descriptor, &binary_path);
+		= prv_load_and_parse_plugin_file(path, &binary_path, &plugin_descriptor.id,
+			&plugin_descriptor.dependencies, &plugin_descriptor.abi);
 
 	if (error != DAGGLE_SUCCESS) {
 		LOG(LOG_TAG_ERROR, "Plugin parsing failed");
 		RETURN_STATUS(error);
-	}
-
-	// If the plugin file did not define plugin binary path
-	if (!binary_path) {
-		LOG(LOG_TAG_ERROR, "Plugin binary for " PLATFORM_CODE " is missing");
-		RETURN_STATUS(DAGGLE_ERROR_PARSE);
 	}
 
 	// TODO: validate binary_path
