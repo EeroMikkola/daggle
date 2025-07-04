@@ -46,15 +46,15 @@ daggle_plugin_register_node(daggle_instance_h instance,
 	REQUIRE_PARAMETER(node_type);
 	REQUIRE_PARAMETER(declare);
 
-	name_with_hash_t nh
-		= { .name = strdup(node_type), .hash = fnv1a_32(node_type) };
-
 	node_info_t info = {
-		.name_hash = nh,
+		.name_hash = {
+			.name = strdup(node_type), 
+			.hash = fnv1a_32(node_type)
+		},
 		.declare = declare,
 	};
 
-	LOG_FMT_COND_DEBUG("Registered node %s", info.name_hash.name);
+	LOG_FMT_COND_DEBUG("Registered node %s", node_type);
 
 	resource_container_t* container = &((instance_t*)instance)->plugin_manager.res;
 	RETURN_IF_ERROR(dynamic_array_push(&container->nodes, &info));
@@ -75,11 +75,11 @@ daggle_plugin_register_type(daggle_instance_h instance,
 	REQUIRE_PARAMETER(serializer);
 	REQUIRE_PARAMETER(deserializer);
 
-	name_with_hash_t nh
-		= { .name = strdup(type_name), .hash = fnv1a_32(type_name) };
-
 	type_info_t info = {
-		.name_hash = nh,
+		.name_hash = { 
+			.name = strdup(type_name), 
+			.hash = fnv1a_32(type_name) 
+		},
 		.cloner = cloner,
 		.freer = freer,
 		.serializer = serializer,
