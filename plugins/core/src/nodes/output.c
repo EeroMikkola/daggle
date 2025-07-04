@@ -52,9 +52,9 @@ output_gdv_message(void** out_data, const char** out_type)
 void
 output(daggle_node_h handle)
 {
-	daggle_node_declare_input(handle, "value", DAGGLE_INPUT_IMMUTABLE_REFERENCE,
+	daggle_node_declare_input(handle, "value", DAGGLE_INPUT_BEHAVIOR_REFERENCE,
 		output_gdv_value);
 	daggle_node_declare_input(handle, "message",
-		DAGGLE_INPUT_IMMUTABLE_REFERENCE, output_gdv_message);
+		DAGGLE_INPUT_BEHAVIOR_REFERENCE, output_gdv_message);
 	daggle_node_declare_task(handle, output_impl);
 }

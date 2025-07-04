@@ -39,37 +39,33 @@ prv_port_variant_1_to_daggle(port_variant_1_t variant)
 	}
 }
 
-input_variant_1_t
-prv_input_variant_daggle_to_1(daggle_input_variant_t variant)
+input_behavior_1_t
+prv_input_behavior_daggle_to_1(daggle_input_behavior_t variant)
 {
 	switch (variant) {
 	default:
 		LOG_FMT(LOG_TAG_ERROR, "Unknown input variant %u", variant);
-	case DAGGLE_INPUT_IMMUTABLE_REFERENCE:
-		return IMMUTABLE_REFERENCE;
-	case DAGGLE_INPUT_IMMUTABLE_COPY:
-		return IMMUTABLE_COPY;
-	case DAGGLE_INPUT_MUTABLE_REFERENCE:
-		return MUTABLE_REFERENCE;
-	case DAGGLE_INPUT_MUTABLE_COPY:
-		return MUTABLE_COPY;
+	case DAGGLE_INPUT_BEHAVIOR_REFERENCE:
+		return REFERENCE;
+	case DAGGLE_INPUT_BEHAVIOR_CLONE:
+		return CLONE;
+	case DAGGLE_INPUT_BEHAVIOR_ACQUIRE:
+		return ACQUIRE;
 	}
 }
 
-daggle_input_variant_t
-prv_input_variant_1_to_daggle(input_variant_1_t variant)
+daggle_input_behavior_t
+prv_input_behavior_1_to_daggle(input_behavior_1_t variant)
 {
 	switch (variant) {
 	default:
 		LOG_FMT(LOG_TAG_ERROR, "Unknown input variant %u", variant);
-	case IMMUTABLE_REFERENCE:
-		return DAGGLE_INPUT_IMMUTABLE_REFERENCE;
-	case IMMUTABLE_COPY:
-		return DAGGLE_INPUT_IMMUTABLE_COPY;
-	case MUTABLE_REFERENCE:
-		return DAGGLE_INPUT_MUTABLE_REFERENCE;
-	case MUTABLE_COPY:
-		return DAGGLE_INPUT_MUTABLE_COPY;
+	case REFERENCE:
+		return DAGGLE_INPUT_BEHAVIOR_REFERENCE;
+	case CLONE:
+		return DAGGLE_INPUT_BEHAVIOR_CLONE;
+	case ACQUIRE:
+		return DAGGLE_INPUT_BEHAVIOR_ACQUIRE;
 	}
 }
 
@@ -244,7 +240,7 @@ prv_port_serialize_and_push(port_t* port, graph_t* graph,
 	// For input ports, set the input variant, and link if it has one
 	if (port->port_variant == DAGGLE_PORT_INPUT) {
 		port_entry.port_specific.input
-			= prv_input_variant_daggle_to_1(port->variant.input.variant);
+			= prv_input_behavior_daggle_to_1(port->variant.input.behavior);
 
 		if (port->variant.input.link) {
 			port_entry.edge_ptidx
@@ -383,11 +379,11 @@ prv_deserialize_port(daggle_instance_h instance, node_t* node,
 			printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
 		}
 
-		daggle_input_variant_t input_variant;
-		input_variant
-			= prv_input_variant_1_to_daggle(port_entry->port_specific.input);
+		daggle_input_behavior_t input_behavior;
+		input_behavior
+			= prv_input_behavior_1_to_daggle(port_entry->port_specific.input);
 
-		port_element->variant.input.variant = input_variant;
+		port_element->variant.input.behavior = input_behavior;
 	}
 
 	// If port has data deserialize it and set the port value

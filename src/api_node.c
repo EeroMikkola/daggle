@@ -9,7 +9,7 @@
 
 daggle_error_code_t
 prv_node_declare_port(daggle_port_variant_t variant, daggle_node_h node,
-	const char* port_name, daggle_input_variant_t input_variant,
+	const char* port_name, daggle_input_behavior_t input_behavior,
 	daggle_default_value_generator_fn default_value_gen)
 {
 	ASSERT_PARAMETER(node);
@@ -49,7 +49,7 @@ prv_node_declare_port(daggle_port_variant_t variant, daggle_node_h node,
 	new_port.value = default_value_cnt;
 
 	if (variant == DAGGLE_PORT_INPUT) {
-		new_port.variant.input.variant = input_variant;
+		new_port.variant.input.behavior = input_behavior;
 	}
 
 	// Set the created port as declared.
@@ -60,7 +60,7 @@ prv_node_declare_port(daggle_port_variant_t variant, daggle_node_h node,
 
 daggle_error_code_t
 daggle_node_declare_input(daggle_node_h node, const char* port_name,
-	daggle_input_variant_t variant,
+	daggle_input_behavior_t input_behavior,
 	daggle_default_value_generator_fn default_value_gen)
 {
 	REQUIRE_PARAMETER(node);
@@ -68,7 +68,7 @@ daggle_node_declare_input(daggle_node_h node, const char* port_name,
 	REQUIRE_PARAMETER(default_value_gen);
 
 	RETURN_STATUS(prv_node_declare_port(DAGGLE_PORT_INPUT, node, port_name,
-		variant, default_value_gen));
+		input_behavior, default_value_gen));
 }
 
 daggle_error_code_t

@@ -12,7 +12,7 @@ typedef struct port_variant_output_s {
 
 typedef struct port_variant_input_s {
 	daggle_port_h link;
-	daggle_input_variant_t variant;
+	daggle_input_behavior_t behavior;
 } port_variant_input_t;
 
 typedef struct port_variant_parameter_s {

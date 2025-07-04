@@ -117,7 +117,7 @@ input_bridge(daggle_node_h handle)
 	daggle_node_declare_parameter(handle, "name", bridge_name_default_value);
 	daggle_node_declare_output(handle, "value");
 
-	daggle_node_declare_input(handle, "_bridge", DAGGLE_INPUT_MUTABLE_COPY,
+	daggle_node_declare_input(handle, "_bridge", DAGGLE_INPUT_BEHAVIOR_ACQUIRE,
 		null_default_value);
 
 	daggle_node_declare_task(handle, input_bridge_impl);
@@ -127,7 +127,7 @@ void
 output_bridge(daggle_node_h handle)
 {
 	daggle_node_declare_parameter(handle, "name", bridge_name_default_value);
-	daggle_node_declare_input(handle, "value", DAGGLE_INPUT_MUTABLE_COPY,
+	daggle_node_declare_input(handle, "value", DAGGLE_INPUT_BEHAVIOR_ACQUIRE,
 		null_default_value);
 
 	daggle_node_declare_output(handle, "_bridge");
@@ -307,7 +307,7 @@ graph_invoker_declare_graph_bridges(daggle_node_h handle, daggle_graph_h graph)
 
 		if (is_input) {
 			daggle_node_declare_input(handle, name_value,
-				DAGGLE_INPUT_MUTABLE_COPY, null_default_value);
+				DAGGLE_INPUT_BEHAVIOR_ACQUIRE, null_default_value);
 		} else {
 			daggle_node_declare_output(handle, name_value);
 		}

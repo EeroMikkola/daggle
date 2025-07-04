@@ -48,7 +48,7 @@ port_init(daggle_node_h node, const char* port_name,
 
 	if (variant == DAGGLE_PORT_INPUT) {
 		port.variant.input.link = NULL;
-		port.variant.input.variant = DAGGLE_INPUT_IMMUTABLE_REFERENCE;
+		port.variant.input.behavior = DAGGLE_INPUT_BEHAVIOR_REFERENCE;
 	} else if (variant == DAGGLE_PORT_OUTPUT) {
 		dynamic_array_init(0, sizeof(port_t*), &port.variant.output.links);
 	}

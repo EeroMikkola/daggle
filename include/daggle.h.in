@@ -62,32 +62,13 @@ typedef enum daggle_port_variant_e {
 	DAGGLE_PORT_PARAMETER,
 } daggle_port_variant_t;
 
-typedef enum daggle_input_variant_e {
-	DAGGLE_INPUT_IMMUTABLE_REFERENCE, // Reference to value, freed after use
-	DAGGLE_INPUT_IMMUTABLE_COPY, // Copy of value, freed after use
-	DAGGLE_INPUT_MUTABLE_REFERENCE, // Reference to value, is
-									// DAGGLE_INPUT_MUTABLE_COPY unless this is
-									// only port, user must free or pass forward
-	DAGGLE_INPUT_MUTABLE_COPY, // Copy of value, user must free or pass forward
-} daggle_input_variant_t; // When in doubt, use
-						  // DAGGLE_INPUT_IMMUTABLE_REFERENCE.
+typedef enum daggle_input_behavior_e {
+	DAGGLE_INPUT_BEHAVIOR_REFERENCE, // Immutable reference, no ownership
+	DAGGLE_INPUT_BEHAVIOR_CLONE, // Mutable copy, caller owns
+	DAGGLE_INPUT_BEHAVIOR_ACQUIRE, // Caller acquires ownership
+} daggle_input_behavior_t;
 
-// MUTABLE_REFERENCE becomes MUTABLE_COPY, unless there is exactly one
-// connection, and the connection is MUTABLE_REFERENCE
-
-// Note: MUTABLE_REFERENCE resets the value of the source port
-
-// IMMUTABLE_REFERENCE -> IMMUTABLE_REFERENCE
-// IMMUTABLE_REFERENCE + IMMUTABLE_REFERENCE -> IMMUTABLE_REFERENCE +
-// IMMUTABLE_REFERENCE IMMUTABLE_COPY + IMMUTABLE_REFERENCE -> IMMUTABLE_COPY +
-// IMMUTABLE_REFERENCE
-
-// MUTABLE_REFERENCE -> MUTABLE_REFERENCE
-// MUTABLE_REFERENCE + X -> MUTABLE_COPY + X
-// MUTABLE_REFERENCE + MUTABLE_REFERENCE -> MUTABLE_COPY + MUTABLE_COPY
-
-// IMMUTABLE_REFERENCE + MUTABLE_COPY -> IMMUTABLE_REFERENCE + MUTABLE_COPY
-// IMMUTABLE_REFERENCE + MUTABLE_REFERENCE -> IMMUTABLE_REFERENCE + MUTABLE_COPY
+// Note: ACQUIRE becomes CLONE, unless the input is the sole link to the output.
 
 // ### PLUGIN DEFINITIONS
 
@@ -350,7 +331,7 @@ daggle_node_get_graph(daggle_node_h node, daggle_graph_h* out_graph);
 
 DAGGLE_API daggle_error_code_t
 daggle_node_declare_input(daggle_node_h node, const char* port_name,
-	daggle_input_variant_t variant,
+	daggle_input_behavior_t input_behavior,
 	daggle_default_value_generator_fn default_value_gen);
 
 DAGGLE_API daggle_error_code_t
