@@ -34,7 +34,10 @@ port_init(daggle_node_h node, const char* port_name,
 	ASSERT_PARAMETER(out_port);
 
 	port_t port = {
-		.name_hash ={ .name = strdup(port_name), .hash = fnv1a_32(port_name) },
+		.name_hash = { 
+			.name = strdup(port_name), 
+			.hash = fnv1a_32(port_name) 
+		},
 		.owner = node,
 		.port_variant = variant
 	};

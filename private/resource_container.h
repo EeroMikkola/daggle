@@ -21,7 +21,7 @@ typedef struct node_info_s {
 
 typedef struct type_info_s {
 	name_with_hash_t name_hash;
-
+	
 	daggle_data_clone_fn cloner;
 	daggle_data_free_fn freer;
 
