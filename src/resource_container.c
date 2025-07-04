@@ -42,9 +42,9 @@ daggle_error_code_t
 daggle_plugin_register_node(daggle_instance_h instance,
 	const char* node_type, daggle_node_declare_fn declare)
 {
-	ASSERT_PARAMETER(instance);
-	ASSERT_PARAMETER(node_type);
-	ASSERT_PARAMETER(declare);
+	REQUIRE_PARAMETER(instance);
+	REQUIRE_PARAMETER(node_type);
+	REQUIRE_PARAMETER(declare);
 
 	name_with_hash_t nh
 		= { .name = strdup(node_type), .hash = fnv1a_32(node_type) };
@@ -68,12 +68,12 @@ daggle_plugin_register_type(daggle_instance_h instance,
 	daggle_data_free_fn freer, daggle_data_serialize_fn serializer,
 	daggle_data_deserialize_fn deserializer)
 {
-	ASSERT_PARAMETER(instance);
-	ASSERT_PARAMETER(type_name);
-	ASSERT_PARAMETER(cloner);
-	ASSERT_PARAMETER(freer);
-	ASSERT_PARAMETER(serializer);
-	ASSERT_PARAMETER(deserializer);
+	REQUIRE_PARAMETER(instance);
+	REQUIRE_PARAMETER(type_name);
+	REQUIRE_PARAMETER(cloner);
+	REQUIRE_PARAMETER(freer);
+	REQUIRE_PARAMETER(serializer);
+	REQUIRE_PARAMETER(deserializer);
 
 	name_with_hash_t nh
 		= { .name = strdup(type_name), .hash = fnv1a_32(type_name) };
