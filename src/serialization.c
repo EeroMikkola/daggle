@@ -47,8 +47,6 @@ prv_input_behavior_daggle_to_1(daggle_input_behavior_t variant)
 		LOG_FMT(LOG_TAG_ERROR, "Unknown input variant %u", variant);
 	case DAGGLE_INPUT_BEHAVIOR_REFERENCE:
 		return REFERENCE;
-	case DAGGLE_INPUT_BEHAVIOR_CLONE:
-		return CLONE;
 	case DAGGLE_INPUT_BEHAVIOR_ACQUIRE:
 		return ACQUIRE;
 	}
@@ -62,8 +60,6 @@ prv_input_behavior_1_to_daggle(input_behavior_1_t variant)
 		LOG_FMT(LOG_TAG_ERROR, "Unknown input variant %u", variant);
 	case REFERENCE:
 		return DAGGLE_INPUT_BEHAVIOR_REFERENCE;
-	case CLONE:
-		return DAGGLE_INPUT_BEHAVIOR_CLONE;
 	case ACQUIRE:
 		return DAGGLE_INPUT_BEHAVIOR_ACQUIRE;
 	}

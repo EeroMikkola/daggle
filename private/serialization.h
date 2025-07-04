@@ -42,7 +42,6 @@ typedef enum port_variant_1_e {
 
 typedef enum input_behavior_1_e {
 	REFERENCE,
-	CLONE,
 	ACQUIRE
 } input_behavior_1_t;
 

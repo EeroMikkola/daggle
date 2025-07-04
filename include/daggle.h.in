@@ -64,8 +64,7 @@ typedef enum daggle_port_variant_e {
 
 typedef enum daggle_input_behavior_e {
 	DAGGLE_INPUT_BEHAVIOR_REFERENCE, // Immutable reference, no ownership
-	DAGGLE_INPUT_BEHAVIOR_CLONE, // Mutable copy, caller owns
-	DAGGLE_INPUT_BEHAVIOR_ACQUIRE, // Caller acquires ownership
+	DAGGLE_INPUT_BEHAVIOR_ACQUIRE, // Caller acquires ownership, mutable
 } daggle_input_behavior_t;
 
 // Note: ACQUIRE becomes CLONE, unless the input is the sole link to the output.

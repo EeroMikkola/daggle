@@ -333,10 +333,9 @@ prv_input_get_value(port_t* port, void** out_data)
 			*out_data = link->value.data;
 			link->value.data = NULL;
 			link->value.info = NULL;
-		} 
-		// Otherwise use the cloning behavior.
-	case DAGGLE_INPUT_BEHAVIOR_CLONE:
-		prv_port_get_value_as_copy(target_port, out_data);
+		} else {
+			prv_port_get_value_as_copy(target_port, out_data);
+		}
 		break;
 	}
 }
