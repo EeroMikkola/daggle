@@ -1,12 +1,11 @@
 #include "plugin_manager.h"
 
+#include "daggle/daggle.h"
 #include "resource_container.h"
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
-#include "utility/hash.h"
-#include "utility/llist_queue.h"
 #include "utility/return_macro.h"
 
 // Check if a plugin with a given ID exists in the plugin source list.
