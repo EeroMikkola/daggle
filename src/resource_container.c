@@ -1,5 +1,6 @@
 #include "resource_container.h"
 
+#include "instance.h"
 #include "stdlib.h"
 #include "string.h"
 #include "utility/hash.h"
@@ -38,10 +39,10 @@ resource_container_destroy(resource_container_t* resource_container)
 }
 
 daggle_error_code_t
-resource_container_register_node(resource_container_t* resource_container,
+daggle_plugin_register_node(daggle_instance_h instance,
 	const char* node_type, daggle_node_declare_fn declare)
 {
-	ASSERT_PARAMETER(resource_container);
+	ASSERT_PARAMETER(instance);
 	ASSERT_PARAMETER(node_type);
 	ASSERT_PARAMETER(declare);
 
@@ -55,18 +56,19 @@ resource_container_register_node(resource_container_t* resource_container,
 
 	LOG_FMT_COND_DEBUG("Registered node %s", info.name_hash.name);
 
-	RETURN_IF_ERROR(dynamic_array_push(&resource_container->nodes, &info));
+	resource_container_t* container = &((instance_t*)instance)->plugin_manager.res;
+	RETURN_IF_ERROR(dynamic_array_push(&container->nodes, &info));
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }
 
 daggle_error_code_t
-resource_container_register_type(resource_container_t* resource_container,
+daggle_plugin_register_type(daggle_instance_h instance,
 	const char* type_name, daggle_data_clone_fn cloner,
 	daggle_data_free_fn freer, daggle_data_serialize_fn serializer,
 	daggle_data_deserialize_fn deserializer)
 {
-	ASSERT_PARAMETER(resource_container);
+	ASSERT_PARAMETER(instance);
 	ASSERT_PARAMETER(type_name);
 	ASSERT_PARAMETER(cloner);
 	ASSERT_PARAMETER(freer);
@@ -86,7 +88,8 @@ resource_container_register_type(resource_container_t* resource_container,
 
 	// LOG_FMT_COND_DEBUG("Registered type %s (%u)", info.name, info.hash);
 
-	RETURN_IF_ERROR(dynamic_array_push(&resource_container->types, &info));
+	resource_container_t* container = &((instance_t*)instance)->plugin_manager.res;
+	RETURN_IF_ERROR(dynamic_array_push(&container->types, &info));
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }

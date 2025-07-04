@@ -34,7 +34,6 @@ set(DAGGLE_SRC
     src/api_execution.c
     src/api_graph.c
     src/api_node.c
-    src/api_plugin_registration.c
     src/api_port.c
     src/api_tasks.c
     src/closure.c
