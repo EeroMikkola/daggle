@@ -2,7 +2,7 @@
 #include "graph.h"
 #include "instance.h"
 #include "node.h"
-#include "pthread.h"
+#include "ports.h"
 #include "stdatomic.h"
 #include "stdbool.h"
 #include "stdio.h"
@@ -30,6 +30,31 @@ prv_graph_master_task_dispose(void* context)
 	LOG(LOG_TAG_INFO, "Finish Graph");
 
 	graph->locked = false;
+}
+
+void
+prv_node_call_function(daggle_task_h task, void* context)
+{
+	node_t* node = context;
+	node->instance_task(task, node->custom_context);
+
+	// Subtract reference accesses.
+	for (uint64_t i = 0; i < node->ports.length; ++i) {
+		port_t* port = dynamic_array_at(&node->ports, i);
+		if(port->port_variant == DAGGLE_PORT_INPUT && port->variant.input.behavior == DAGGLE_INPUT_BEHAVIOR_REFERENCE && port->variant.input.link) {
+			port_t* link = port->variant.input.link;
+			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
+		}
+	}
+}
+
+void
+prv_node_call_dispose(void* context)
+{
+	node_t* node = context;
+	if(node->custom_context_destructor) {
+		node->custom_context_destructor(node->custom_context);
+	}
 }
 
 daggle_error_code_t
@@ -62,8 +87,21 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 		node_t** nodeelem = dynamic_array_at(nodes, i);
 		node_t* node = *nodeelem;
 
+		// TODO: move to a more appropriate location.
+		// Reset port counters.
+		for (uint64_t j = 0; j < node->ports.length; ++j) {
+			port_t* port = dynamic_array_at(&node->ports, j);
+
+			if(port->port_variant == DAGGLE_PORT_INPUT) {
+				port->variant.input.has_spent_access = false;
+			} else if(port->port_variant == DAGGLE_PORT_OUTPUT) {
+				atomic_store(&port->variant.output.num_pending_accesses, 
+					port->variant.output.links.length);
+			}
+		}
+
 		task_t* tk;
-		daggle_task_create(node->instance_task, NULL, node->custom_context,
+		daggle_task_create(prv_node_call_function, prv_node_call_dispose, node,
 			(char*)node->info->name_hash.name, (daggle_task_h*)&tk);
 
 		// TODO: handle error, must task_free(tk) every initialized array

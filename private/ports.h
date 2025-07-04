@@ -3,16 +3,20 @@
 #include "data_container.h"
 #include "resource_container.h"
 #include "utility/dynamic_array.h"
+#include "stdatomic.h"
+#include "stdint.h"
 
 #include <daggle/daggle.h>
 
 typedef struct port_variant_output_s {
 	dynamic_array_t links;
+	_Atomic(uint32_t) num_pending_accesses;
 } port_variant_output_t;
 
 typedef struct port_variant_input_s {
 	daggle_port_h link;
 	daggle_input_behavior_t behavior;
+	bool has_spent_access;
 } port_variant_input_t;
 
 typedef struct port_variant_parameter_s {

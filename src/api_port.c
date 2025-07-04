@@ -5,6 +5,7 @@
 #include "resource_container.h"
 #include "utility/log_macro.h"
 #include "utility/return_macro.h"
+#include "stdatomic.h"
 
 #include <daggle/daggle.h>
 
@@ -318,23 +319,44 @@ prv_input_get_value(port_t* port, void** out_data)
 
 	node_t* port_owner = port->owner;
 	graph_t* graph = port_owner->graph;
-	bool is_locked = graph->locked;
 
 	// Determine which port to use as the source.
 	port_t* target_port = link ? link : port;
 
+	if(!graph->locked) {
+		prv_port_get_value_as_reference(target_port, out_data);
+	}
+
+	if(port->variant.input.has_spent_access) {
+		LOG(LOG_TAG_ERROR, "Attempting to get value without access");
+		*out_data = NULL;
+	}
+
+	port->variant.input.has_spent_access = true;
+
 	switch (port->variant.input.behavior) {
 	case DAGGLE_INPUT_BEHAVIOR_REFERENCE:
 		prv_port_get_value_as_reference(target_port, out_data);
+		// if link, sub pending accesses AFTER node and subtasks finish!!!
 		break;
 	case DAGGLE_INPUT_BEHAVIOR_ACQUIRE:
 		// Acquire is available only if port is linked, and it is the only link from the output
-		if (link && link->variant.output.links.length == 1) {
+
+		// TODO: In some cases, it might make sense to disable acquiring if
+		// the output belongs to a node, which is computationally very intensive
+		// it might make sense to cache the output. For example, allow the node
+		// to flag outputs to be cached. Changes to parameters (or if node is 
+		// otherwise volatile) would set the node dirty
+		if (link && atomic_load(&link->variant.output.num_pending_accesses) == 0) {
 			*out_data = link->value.data;
 			link->value.data = NULL;
 			link->value.info = NULL;
 		} else {
 			prv_port_get_value_as_copy(target_port, out_data);
+			
+			if(link) {
+				atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
+			}
 		}
 		break;
 	}
