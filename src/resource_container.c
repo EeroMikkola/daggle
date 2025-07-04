@@ -7,6 +7,8 @@
 #include "utility/dynamic_array.h"
 #include "utility/hash.h"
 #include "utility/return_macro.h"
+#include "stddef.h"
+#include <string.h>
 
 void
 resource_container_init(resource_container_t* resource_container)
@@ -133,7 +135,7 @@ resource_container_get_type(resource_container_t* resource_container,
 	ASSERT_PARAMETER(resource_container);
 	
 	// Get the offset to the name_hash member in type_info.
-	uint64_t offset = (uint64_t)&(((type_info_t *)0)->name_hash);
+	uint64_t offset = (uint64_t)offsetof(type_info_t, name_hash);
 	RETURN_STATUS(prv_name_hash_array_get_item(&resource_container->types, offset,
 		data_type, (void*)out_info));
 }
@@ -145,7 +147,7 @@ resource_container_get_node(resource_container_t* resource_container,
 	ASSERT_PARAMETER(resource_container);
 
 	// Get the offset to the name_hash member in node_info.
-	uint64_t offset = (uint64_t)&(((node_info_t*)0)->name_hash);
+	uint64_t offset = (uint64_t)offsetof(node_info_t, name_hash);
 	RETURN_STATUS(prv_name_hash_array_get_item(&resource_container->nodes, offset,
 		node_type, (void*)out_info));
 }
