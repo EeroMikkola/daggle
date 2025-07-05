@@ -3,9 +3,12 @@
 #include "node.h"
 #include "ports.h"
 #include "resource_container.h"
+#include "utility/log_macro.h"
 #include "utility/return_macro.h"
+#include "stdatomic.h"
 
 #include <daggle/daggle.h>
+#include <stdint.h>
 
 // Writes the input port address to out_target and output to out_source.
 daggle_error_code_t
@@ -317,31 +320,44 @@ prv_input_get_value(port_t* port, void** out_data)
 
 	node_t* port_owner = port->owner;
 	graph_t* graph = port_owner->graph;
-	bool is_locked = graph->locked;
 
 	// Determine which port to use as the source.
 	port_t* target_port = link ? link : port;
 
-	switch (port->variant.input.variant) {
-	case DAGGLE_INPUT_IMMUTABLE_REFERENCE:
+	if(!graph->locked) {
+		prv_port_get_value_as_reference(target_port, out_data);
+	}
+
+	if(port->variant.input.has_spent_access) {
+		LOG(LOG_TAG_ERROR, "Attempting to get value without access");
+		*out_data = NULL;
+	}
+
+	port->variant.input.has_spent_access = true;
+
+	switch (port->variant.input.behavior) {
+	case DAGGLE_INPUT_BEHAVIOR_REFERENCE:
 		prv_port_get_value_as_reference(target_port, out_data);
 		break;
-	case DAGGLE_INPUT_IMMUTABLE_COPY:
-		LOG(LOG_TAG_WARN,
-			"Currently DAGGLE_INPUT_IMMUTABLE_COPY inputs will leak; caller "
-			"should free the received data, or prefer "
-			"DAGGLE_INPUT_MUTABLE_COPY");
-		prv_port_get_value_as_copy(target_port, out_data);
-		break;
-	case DAGGLE_INPUT_MUTABLE_REFERENCE:
-		if (!link || link->variant.output.links.length == 1) {
-			// Steal the data
+	case DAGGLE_INPUT_BEHAVIOR_ACQUIRE:
+		// TODO: In some cases, it might make sense to disable acquiring if
+		// the output belongs to a node, which is computationally very intensive
+		// it might make sense to cache the output. For example, allow the node
+		// to flag outputs to be cached. Changes to parameters (or if node is 
+		// otherwise volatile) would set the node dirty
+
+		// Acquire is available only if port is linked, and it is the only link from the output
+		if (link && atomic_load(&link->variant.output.num_pending_accesses) == 1) {
 			*out_data = link->value.data;
 			link->value.data = NULL;
 			link->value.info = NULL;
-		} // Otherwise will act like mutable copy
-	case DAGGLE_INPUT_MUTABLE_COPY:
-		prv_port_get_value_as_copy(target_port, out_data);
+		} else {
+			prv_port_get_value_as_copy(target_port, out_data);	
+		}
+
+		if(link) {
+			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
+		}
 		break;
 	}
 }

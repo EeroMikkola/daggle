@@ -40,12 +40,10 @@ typedef enum port_variant_1_e {
 	PARAMETER,
 } port_variant_1_t;
 
-typedef enum input_variant_1_e {
-	IMMUTABLE_REFERENCE,
-	IMMUTABLE_COPY,
-	MUTABLE_REFERENCE,
-	MUTABLE_COPY
-} input_variant_1_t;
+typedef enum input_behavior_1_e {
+	REFERENCE,
+	ACQUIRE
+} input_behavior_1_t;
 
 typedef struct port_entry_1_s {
 	uint64_t name_stoff;
@@ -53,6 +51,6 @@ typedef struct port_entry_1_s {
 	uint64_t data_dtoff; // max if unset
 	port_variant_1_t port_variant;
 	union {
-		input_variant_1_t input;
+		input_behavior_1_t input;
 	} port_specific;
 } port_entry_1_t;
