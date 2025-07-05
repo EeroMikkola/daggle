@@ -16,13 +16,28 @@ task_free(task_t* task)
 }
 
 void
-prv_propagate_progress(task_t* task)
+prv_propagate_subtask_progress(task_t* task)
 {
-	if (atomic_fetch_sub(&task->num_pending_subtasks, 1) == 1) {
-		// Task was completed.
+	if (atomic_fetch_sub(&task->num_pending_subtasks, 1) > 1) {
+		return;
+	}
 
-		if (task->head) {
-			prv_propagate_progress(task->head);
+	if (!task->head) {
+		return;
+	}
+
+	prv_propagate_subtask_progress(task->head);
+}
+
+void
+prv_propagate_dependency_progress(task_t* task, executor_t* executor)
+{
+	for (uint64_t i = 0; i < task->dependants.length; ++i) {
+		task_t** task_element = dynamic_array_at(&task->dependants, i);
+		task_t* task = *task_element;
+
+		if (atomic_fetch_sub(&task->num_pending_dependencies, 1) == 1) {
+			ts_llist_queue_enqueue(&executor->queue, task);
 		}
 	}
 }
@@ -51,19 +66,14 @@ prv_worker_thread(void* context)
 		// Call the task work function.
 		void_closure_call(&task->work);
 
-		prv_propagate_progress(task);
-
-		for (uint64_t i = 0; i < task->dependants.length; ++i) {
-			task_t** tkelem = dynamic_array_at(&task->dependants, i);
-			task_t* tk = *tkelem;
-
-			if (atomic_fetch_sub(&tk->num_pending_dependencies, 1) == 1) {
-				ts_llist_queue_enqueue(&executor->queue, tk);
-			}
-		}
+		prv_propagate_subtask_progress(task);
+		prv_propagate_dependency_progress(task, executor);
 
 		// If the task has a subgraph, the task is freed in the tail dispose.
 		if (!task->tail) {
+			// TODO: Come up with a more descriptive name for task_free:
+			// it calls the dispose function, which is essentially used to run
+			// code after task finishes; not just freeing the allocated data!
 			task_free(task);
 		}
 	}
@@ -103,6 +113,7 @@ executor_destroy(executor_t* executor)
 	pthread_cond_broadcast(&executor->queue.condition);
 
 	for (uint64_t i = 0; i < NUM_THREADS; ++i) {
+		pthread_cancel(executor->workers[i]);
 		pthread_join(executor->workers[i], NULL);
 	}
 

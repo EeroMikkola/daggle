@@ -69,6 +69,8 @@ typedef enum daggle_input_behavior_e {
 
 // Note: data got via reference input ports remain valid for the node and its subtasks.
 
+// TODO: Reusable tasks to avoid allocations.
+
 // ### PLUGIN DEFINITIONS
 
 typedef struct daggle_plugin_interface_s {
