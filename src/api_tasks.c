@@ -13,7 +13,8 @@ prv_sink_closure(void* context)
 void
 prv_sink_dispose(void* context)
 {
-	task_free((task_t*)context);
+	task_t* task = context;
+	task_free(task);
 }
 
 typedef struct prv_node_task_wrapper_ctx {

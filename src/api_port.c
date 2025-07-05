@@ -8,6 +8,7 @@
 #include "stdatomic.h"
 
 #include <daggle/daggle.h>
+#include <stdint.h>
 
 // Writes the input port address to out_target and output to out_source.
 daggle_error_code_t
@@ -337,26 +338,25 @@ prv_input_get_value(port_t* port, void** out_data)
 	switch (port->variant.input.behavior) {
 	case DAGGLE_INPUT_BEHAVIOR_REFERENCE:
 		prv_port_get_value_as_reference(target_port, out_data);
-		// if link, sub pending accesses AFTER node and subtasks finish!!!
 		break;
 	case DAGGLE_INPUT_BEHAVIOR_ACQUIRE:
-		// Acquire is available only if port is linked, and it is the only link from the output
-
 		// TODO: In some cases, it might make sense to disable acquiring if
 		// the output belongs to a node, which is computationally very intensive
 		// it might make sense to cache the output. For example, allow the node
 		// to flag outputs to be cached. Changes to parameters (or if node is 
 		// otherwise volatile) would set the node dirty
-		if (link && atomic_load(&link->variant.output.num_pending_accesses) == 0) {
+
+		// Acquire is available only if port is linked, and it is the only link from the output
+		if (link && atomic_load(&link->variant.output.num_pending_accesses) == 1) {
 			*out_data = link->value.data;
 			link->value.data = NULL;
 			link->value.info = NULL;
 		} else {
-			prv_port_get_value_as_copy(target_port, out_data);
-			
-			if(link) {
-				atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
-			}
+			prv_port_get_value_as_copy(target_port, out_data);	
+		}
+
+		if(link) {
+			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
 		}
 		break;
 	}

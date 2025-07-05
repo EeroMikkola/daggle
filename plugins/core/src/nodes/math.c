@@ -118,10 +118,10 @@ DEFAULT_VALUE_GENERATOR(math_gdv_operation, int32_t, 0, INT_TYPE)
 void
 math(daggle_node_h handle)
 {
-	daggle_node_declare_input(handle, "first", DAGGLE_INPUT_BEHAVIOR_REFERENCE,
+	daggle_node_declare_input(handle, "first", DAGGLE_INPUT_BEHAVIOR_ACQUIRE,
 		math_gdv_first);
 	daggle_node_declare_input(handle, "second",
-		DAGGLE_INPUT_BEHAVIOR_REFERENCE, math_gdv_second);
+		DAGGLE_INPUT_BEHAVIOR_ACQUIRE, math_gdv_second);
 	daggle_node_declare_parameter(handle, "operation", math_gdv_operation);
 	daggle_node_declare_output(handle, "result");
 	daggle_node_declare_task(handle, math_impl);

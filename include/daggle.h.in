@@ -67,7 +67,7 @@ typedef enum daggle_input_behavior_e {
 	DAGGLE_INPUT_BEHAVIOR_ACQUIRE, // Caller acquires ownership, mutable
 } daggle_input_behavior_t;
 
-// Note: ACQUIRE becomes CLONE, unless the input is the sole link to the output.
+// Note: data got via reference input ports remain valid for the node and its subtasks.
 
 // ### PLUGIN DEFINITIONS
 

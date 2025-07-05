@@ -9,6 +9,7 @@
 #include "stdlib.h"
 #include "utility/closure.h"
 #include "utility/dynamic_array.h"
+#include "utility/log_macro.h"
 #include "utility/return_macro.h"
 #include "utility/thread_safe_linked_queue.h"
 
@@ -36,7 +37,14 @@ void
 prv_node_call_function(daggle_task_h task, void* context)
 {
 	node_t* node = context;
+	
 	node->instance_task(task, node->custom_context);
+}
+
+void
+prv_node_call_dispose(void* context)
+{
+	node_t* node = context;
 
 	// Subtract reference accesses.
 	for (uint64_t i = 0; i < node->ports.length; ++i) {
@@ -46,12 +54,7 @@ prv_node_call_function(daggle_task_h task, void* context)
 			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
 		}
 	}
-}
-
-void
-prv_node_call_dispose(void* context)
-{
-	node_t* node = context;
+	
 	if(node->custom_context_destructor) {
 		node->custom_context_destructor(node->custom_context);
 	}
@@ -215,6 +218,9 @@ daggle_graph_execute(daggle_instance_h instance, daggle_graph_h graph)
 	daggle_task_h task;
 	daggle_graph_taskify(graph, &task);
 	daggle_task_execute(instance, task);
+	while (((graph_t*)graph)->locked) {
+	
+	}
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }
@@ -230,7 +236,10 @@ daggle_task_execute(daggle_instance_h instance, daggle_task_h task)
 	ts_llist_queue_enqueue(&instance_impl->executor.queue, task);
 
 	task_t* t = task;
-	while (atomic_load(&t->num_pending_subtasks) > 0) { };
+
+	// Note: this is a hack, and sometimes exists too quickly
+	// TODO: come up with a better solution
+	while (atomic_load(&t->num_pending_subtasks) > 0) { }; 
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }

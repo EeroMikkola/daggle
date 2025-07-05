@@ -367,8 +367,7 @@ prv_deserialize_port(daggle_instance_h instance, node_t* node,
 
 	// Deserialize input port variant
 	if (port_entry->port_variant == INPUT) {
-		const char* ivarnames[] = { "IMMUTABLE_REFERENCE", "IMMUTABLE_COPY",
-			"MUTABLE_REFERENCE", "MUTABLE_COPY" };
+		const char* ivarnames[] = { "REFERENCE", "ACQUIRE" };
 		printf("  - Input: %s\n", ivarnames[port_entry->port_specific.input]);
 
 		if (port_entry->edge_ptidx != UINT64_MAX) {
