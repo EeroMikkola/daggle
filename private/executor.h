@@ -1,14 +1,16 @@
 #pragma once
 
 #include "pthread.h"
-#include "utility/closure.h"
 #include "utility/dynamic_array.h"
 #include "utility/thread_safe_linked_queue.h"
 
 #include <daggle/daggle.h>
 
 typedef struct task_s {
-	void_closure_t work;
+	daggle_task_callback_fn start;
+	daggle_task_callback_fn complete;
+	daggle_task_callback_dispose_fn dispose;
+	void* context;
 
 	struct task_s* head; // Parent of the subgraph this is a part of
 	struct task_s* tail; // Tail of this' own subgraph

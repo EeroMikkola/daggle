@@ -1,67 +1,22 @@
 #include "daggle/daggle.h"
 #include "executor.h"
-#include "node.h"
 #include "stdatomic.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "utility/return_macro.h"
 
 void
-prv_sink_closure(void* context)
+prv_sink_closure(daggle_task_h task, void* context)
 {
 }
 
+// TODO: Remove this, and the one in executor_try_get_and_run_task.
+// Implement a better cleanup solution.
 void
 prv_sink_dispose(void* context)
 {
-	task_t* task = context;
-	task_free(task);
-}
-
-typedef struct prv_node_task_wrapper_ctx {
-	task_t* task;
-	daggle_task_callback_fn start;
-	daggle_task_callback_fn complete;
-	daggle_task_callback_dispose_fn dispose;
-	void* context;
-} prv_node_task_wrapper_ctx_t;
-
-void
-prv_node_task_wrapper_start(void* context)
-{
-	ASSERT_NOT_NULL(context, "context is null");
-
-	prv_node_task_wrapper_ctx_t* context_impl = context;
-
-	if(context_impl->start) {
-		context_impl->start(context_impl->task, context_impl->context);
-	}
-}
-
-void
-prv_node_task_wrapper_complete(void* context)
-{
-	ASSERT_NOT_NULL(context, "context is null");
-
-	prv_node_task_wrapper_ctx_t* context_impl = context;
-
-	if(context_impl->complete) {
-		context_impl->complete(context_impl->task, context_impl->context);
-	}
-}
-
-void
-prv_node_task_wrapper_dispose(void* context)
-{
-	ASSERT_NOT_NULL(context, "context is null");
-
-	prv_node_task_wrapper_ctx_t* context_impl = context;
-
-	if (context_impl->dispose) {
-		context_impl->dispose(context_impl->context);
-	}
-
-	free(context_impl);
+	task_t* headtask = context;
+	task_free(headtask);
 }
 
 daggle_error_code_t
@@ -78,16 +33,10 @@ daggle_task_create(daggle_task_callback_fn start, daggle_task_callback_fn comple
 	dynamic_array_init(0, sizeof(task_t*), &task->dependants);
 	atomic_store(&task->num_pending_dependencies, 0);
 
-	prv_node_task_wrapper_ctx_t* ctx = malloc(sizeof *ctx);
-	ctx->context = context;
-	ctx->start = start;
-	ctx->complete = complete;
-	ctx->dispose = dispose;
-	ctx->task = task;
-
-	task->work.function = prv_node_task_wrapper_start;
-	task->work.dispose = prv_node_task_wrapper_dispose;
-	task->work.context = ctx;
+	task->start = start;
+	task->complete = complete;
+	task->dispose = dispose;
+	task->context = context;
 
 	*out_task = task;
 
@@ -140,10 +89,10 @@ daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 		tail->num_subtasks = 0;
 		atomic_store(&tail->num_pending_subtasks, 1);
 
-		tail->work.function = prv_sink_closure;
-		tail->work.dispose
-			= prv_sink_dispose; // The tail will free the parent task.
-		tail->work.context = task_impl;
+		tail->start = prv_sink_closure;
+		tail->dispose = prv_sink_dispose;
+		tail->complete = NULL;
+		tail->context = task_impl;
 		atomic_store(&tail->num_pending_dependencies, 0);
 
 		// Sink is a subtask

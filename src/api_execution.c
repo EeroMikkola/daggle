@@ -7,7 +7,6 @@
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "utility/closure.h"
 #include "utility/dynamic_array.h"
 #include "utility/log_macro.h"
 #include "utility/return_macro.h"
@@ -16,7 +15,7 @@
 #include <daggle/daggle.h>
 
 void
-prv_graph_master_task_function(void* context)
+prv_graph_master_task_function(daggle_task_h task, void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
 	LOG(LOG_TAG_INFO, "Run Graph");
@@ -59,6 +58,62 @@ prv_node_call_dispose(void* context)
 		node->custom_context_destructor(node->custom_context);
 	}
 }*/
+
+typedef struct prv_node_task_wrapper_ctx {
+	task_t* task;
+	node_t* node;
+	daggle_task_callback_fn start;
+	daggle_task_callback_fn complete;
+	daggle_task_callback_dispose_fn dispose;
+	void* context;
+} prv_node_task_wrapper_ctx_t;
+
+void
+prv_node_task_wrapper_start(daggle_task_h task, void* context)
+{
+	ASSERT_NOT_NULL(context, "context is null");
+
+	prv_node_task_wrapper_ctx_t* context_impl = context;
+
+	//LOG_FMT(LOG_TAG_INFO, "Started %s", context_impl->node->info->name_hash.name);
+
+	if(context_impl->start) {
+		context_impl->start(context_impl->task, context_impl->context);
+	}
+}
+
+void
+prv_node_task_wrapper_complete(daggle_task_h task, void* context)
+{
+	ASSERT_NOT_NULL(context, "context is null");
+
+	prv_node_task_wrapper_ctx_t* context_impl = context;
+	node_t* node = context_impl->node;
+
+	//LOG_FMT(LOG_TAG_INFO, "Completed %s", node->info->name_hash.name);
+
+	for (uint64_t i = 0; i < node->ports.length; ++i) {
+		port_t* port = dynamic_array_at(&node->ports, i);
+		if(port->port_variant == DAGGLE_PORT_INPUT && port->variant.input.behavior == DAGGLE_INPUT_BEHAVIOR_REFERENCE && port->variant.input.link) {
+			port_t* link = port->variant.input.link;
+			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
+		}
+	}
+}
+
+void
+prv_node_task_wrapper_dispose(void* context)
+{
+	ASSERT_NOT_NULL(context, "context is null");
+
+	prv_node_task_wrapper_ctx_t* context_impl = context;
+
+	if (context_impl->dispose) {
+		context_impl->dispose(context_impl->context);
+	}
+
+	free(context_impl);
+}
 
 daggle_error_code_t
 prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
@@ -103,12 +158,27 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 			}
 		}
 
-		//task_t* tk;
-		//daggle_task_create(prv_node_call_function, prv_node_call_dispose, node,
-		//	(char*)node->info->name_hash.name, (daggle_task_h*)&tk);
+		task_t* task = node->task;
 
-		// TODO: Allow tasks to be reused.
+		// Create a wrapper context for the task
+		prv_node_task_wrapper_ctx_t* ctx = malloc(sizeof *ctx);
+		ctx->node = node;
+		ctx->context = task->context;
+		ctx->start = task->start;
+		ctx->complete = task->complete;
+		ctx->dispose = task->dispose;
+		ctx->task = node->task;
+
+		// Wrap the task
+		task->start = prv_node_task_wrapper_start;
+		task->complete = prv_node_task_wrapper_complete;
+		task->dispose = prv_node_task_wrapper_dispose;
+		task->context = ctx;
+
 		dynamic_array_push(&tasks, &node->task);
+
+		// TODO: Currently the task is consumed, redeclaration is required.
+		// Instead, could reuse the tasks.
 		node->task = NULL;
 	}
 
@@ -173,9 +243,10 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 	dynamic_array_init(0, sizeof(task_t*), &master_task->dependants);
 	atomic_store(&master_task->num_pending_dependencies, 0);
 
-	master_task->work.function = prv_graph_master_task_function;
-	master_task->work.dispose = prv_graph_master_task_dispose;
-	master_task->work.context = graph;
+	master_task->start = prv_graph_master_task_function;
+	master_task->complete = NULL;
+	master_task->dispose = prv_graph_master_task_dispose;
+	master_task->context = graph;
 
 	daggle_task_add_subgraph(master_task, tasks.data, tasks.length);
 	dynamic_array_destroy(&tasks);

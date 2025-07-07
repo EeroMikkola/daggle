@@ -10,7 +10,10 @@
 void
 task_free(task_t* task)
 {
-	void_closure_dispose(&task->work);
+	if(task->dispose) {
+		task->dispose(task->context);
+	}
+	
 	dynamic_array_destroy(&task->dependants);
 	free(task);
 }
@@ -20,6 +23,10 @@ prv_propagate_subtask_progress(task_t* task)
 {
 	if (atomic_fetch_sub(&task->num_pending_subtasks, 1) > 1) {
 		return;
+	}
+
+	if(task->complete) {
+		task->complete(task, task->context);
 	}
 
 	if (!task->head) {
@@ -55,7 +62,9 @@ executor_try_get_and_run_task(executor_t* executor) {
 	}
 
 	// Call the task work function.
-	void_closure_call(&task->work);
+	if(task->start) {
+		task->start(task, task->context);
+	}
 
 	prv_propagate_subtask_progress(task);
 	prv_propagate_dependency_progress(task, executor);

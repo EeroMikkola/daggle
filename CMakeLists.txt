@@ -36,7 +36,6 @@ set(DAGGLE_SRC
     src/api_node.c
     src/api_port.c
     src/api_tasks.c
-    src/closure.c
     src/data_container.c
     src/dynamic_array.c
     src/executor.c
