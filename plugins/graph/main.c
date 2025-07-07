@@ -121,7 +121,7 @@ input_bridge(daggle_node_h handle)
 		null_default_value);
 
 	daggle_task_h task;
-	daggle_task_create(input_bridge_impl, NULL, handle, "input_bridge", &task);
+	daggle_task_create(input_bridge_impl, NULL, NULL, handle, "input_bridge", &task);
 	daggle_node_declare_task_v2(handle, task);
 }
 
@@ -135,7 +135,7 @@ output_bridge(daggle_node_h handle)
 	daggle_node_declare_output(handle, "_bridge");
 
 	daggle_task_h task;
-	daggle_task_create(output_bridge_impl, NULL, handle, "output_bridge", &task);
+	daggle_task_create(output_bridge_impl, NULL, NULL, handle, "output_bridge", &task);
 	daggle_node_declare_task_v2(handle, task);
 }
 
@@ -274,10 +274,10 @@ graph_invoker_impl(daggle_task_h task, void* context)
 	daggle_graph_taskify(graph, &graph_task);
 
 	daggle_task_h read_task;
-	daggle_task_create(invoker_read_task, NULL, ctx, "read", &read_task);
+	daggle_task_create(invoker_read_task, NULL, NULL, ctx, "read", &read_task);
 
 	daggle_task_h write_task;
-	daggle_task_create(invoker_write_task, NULL, ctx, "write", &write_task);
+	daggle_task_create(invoker_write_task, NULL, NULL, ctx, "write", &write_task);
 
 	daggle_task_depend(graph_task, read_task);
 	daggle_task_depend(write_task, graph_task);
@@ -347,10 +347,10 @@ graph_invoker(daggle_node_h handle)
 
 	if (ctx->graph) {
 		graph_invoker_declare_graph_bridges(handle, ctx->graph);
-		daggle_task_create(graph_invoker_impl, graph_invoker_context_dispose, ctx, "graph_invoker", &task);
+		daggle_task_create(graph_invoker_impl, NULL, graph_invoker_context_dispose, ctx, "graph_invoker", &task);
 		//daggle_node_declare_task(handle, graph_invoker_impl);
 	} else {
-		daggle_task_create(invoker_read_task_empty, graph_invoker_context_dispose, ctx, "graph_invoker", &task);
+		daggle_task_create(invoker_read_task_empty, NULL, graph_invoker_context_dispose, ctx, "graph_invoker", &task);
 	}
 
 	daggle_node_declare_task_v2(handle, task);

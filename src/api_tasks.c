@@ -20,19 +20,34 @@ prv_sink_dispose(void* context)
 
 typedef struct prv_node_task_wrapper_ctx {
 	task_t* task;
-	daggle_task_callback_fn function;
+	daggle_task_callback_fn start;
+	daggle_task_callback_fn complete;
 	daggle_task_callback_dispose_fn dispose;
 	void* context;
 } prv_node_task_wrapper_ctx_t;
 
 void
-prv_node_task_wrapper_function(void* context)
+prv_node_task_wrapper_start(void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
 
 	prv_node_task_wrapper_ctx_t* context_impl = context;
 
-	context_impl->function(context_impl->task, context_impl->context);
+	if(context_impl->start) {
+		context_impl->start(context_impl->task, context_impl->context);
+	}
+}
+
+void
+prv_node_task_wrapper_complete(void* context)
+{
+	ASSERT_NOT_NULL(context, "context is null");
+
+	prv_node_task_wrapper_ctx_t* context_impl = context;
+
+	if(context_impl->complete) {
+		context_impl->complete(context_impl->task, context_impl->context);
+	}
 }
 
 void
@@ -50,7 +65,7 @@ prv_node_task_wrapper_dispose(void* context)
 }
 
 daggle_error_code_t
-daggle_task_create(daggle_task_callback_fn work, daggle_task_callback_dispose_fn dispose, 
+daggle_task_create(daggle_task_callback_fn start, daggle_task_callback_fn complete, daggle_task_callback_dispose_fn dispose, 
 	void* context, char* id, daggle_task_h* out_task)
 {
 	task_t* task = malloc(sizeof(task_t));
@@ -65,11 +80,12 @@ daggle_task_create(daggle_task_callback_fn work, daggle_task_callback_dispose_fn
 
 	prv_node_task_wrapper_ctx_t* ctx = malloc(sizeof *ctx);
 	ctx->context = context;
-	ctx->function = work;
+	ctx->start = start;
+	ctx->complete = complete;
 	ctx->dispose = dispose;
 	ctx->task = task;
 
-	task->work.function = prv_node_task_wrapper_function;
+	task->work.function = prv_node_task_wrapper_start;
 	task->work.dispose = prv_node_task_wrapper_dispose;
 	task->work.context = ctx;
 

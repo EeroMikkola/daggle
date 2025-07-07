@@ -59,6 +59,6 @@ output(daggle_node_h handle)
 		DAGGLE_INPUT_BEHAVIOR_REFERENCE, output_gdv_message);
 	
 	daggle_task_h task;
-	daggle_task_create(output_impl, NULL, handle, "output", &task);
+	daggle_task_create(output_impl, NULL, NULL, handle, "output", &task);
 	daggle_node_declare_task_v2(handle, task);
 }

@@ -35,6 +35,6 @@ input(daggle_node_h handle)
 	daggle_node_declare_output(handle, "result");
 
 	daggle_task_h task;
-	daggle_task_create(input_impl, NULL, handle, "input", &task);
+	daggle_task_create(input_impl, NULL, NULL, handle, "input", &task);
 	daggle_node_declare_task_v2(handle, task);
 }
