@@ -94,7 +94,7 @@ daggle_node_declare_output(daggle_node_h node, const char* port_name)
 }
 
 daggle_error_code_t
-daggle_node_declare_task(daggle_node_h node, daggle_node_task_fn task)
+daggle_node_declare_task(daggle_node_h node, daggle_task_callback_fn task)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_PARAMETER(task);

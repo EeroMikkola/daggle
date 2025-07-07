@@ -1,3 +1,4 @@
+#include "daggle/daggle.h"
 #include "executor.h"
 #include "node.h"
 #include "stdatomic.h"
@@ -19,8 +20,8 @@ prv_sink_dispose(void* context)
 
 typedef struct prv_node_task_wrapper_ctx {
 	task_t* task;
-	daggle_node_task_fn function;
-	daggle_node_task_dispose_fn dispose;
+	daggle_task_callback_fn function;
+	daggle_task_callback_dispose_fn dispose;
 	void* context;
 } prv_node_task_wrapper_ctx_t;
 
@@ -49,9 +50,8 @@ prv_node_task_wrapper_dispose(void* context)
 }
 
 daggle_error_code_t
-daggle_task_create(daggle_node_task_fn work,
-	daggle_node_task_dispose_fn dispose, void* context, char* id,
-	daggle_task_h* out_task)
+daggle_task_create(daggle_task_callback_fn work, daggle_task_callback_dispose_fn dispose, 
+	void* context, char* id, daggle_task_h* out_task)
 {
 	task_t* task = malloc(sizeof(task_t));
 	task->tail = NULL;

@@ -8,7 +8,7 @@
 typedef struct node_s {
 	node_info_t* info;
 	dynamic_array_t ports;
-	daggle_node_task_fn instance_task;
+	daggle_task_callback_fn instance_task;
 
 	daggle_graph_h graph;
 
