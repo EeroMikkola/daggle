@@ -33,4 +33,7 @@ daggle_error_code_t
 executor_init(executor_t* executor);
 
 void
+executor_try_get_and_run_task(executor_t* executor);
+
+void
 executor_destroy(executor_t* executor);

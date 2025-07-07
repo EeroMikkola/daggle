@@ -42,43 +42,41 @@ prv_propagate_dependency_progress(task_t* task, executor_t* executor)
 	}
 }
 
-typedef struct prv_worker_ctx {
-	executor_t* executor;
-	uint64_t id;
-} prv_worker_ctx_t;
+void
+executor_try_get_and_run_task(executor_t* executor) {
+	task_t* task;
+	ts_llist_queue_dequeue(&executor->queue, &executor->halt,
+		(void**)&task);
+
+	// Return if task is null. Happens if NULL is enqueued, if no tasks are
+	// available, or if execution was halted.
+	if (!task) {
+		return;
+	}
+
+	// Call the task work function.
+	void_closure_call(&task->work);
+
+	prv_propagate_subtask_progress(task);
+	prv_propagate_dependency_progress(task, executor);
+
+	// If the task has a subgraph, the task is freed in the tail dispose.
+	if (!task->tail) {
+		// TODO: Come up with a more descriptive name for task_free:
+		// it calls the dispose function, which is essentially used to run
+		// code after task finishes; not just freeing the allocated data!
+		task_free(task);
+	}
+}
 
 void*
 prv_worker_thread(void* context)
 {
-	prv_worker_ctx_t* context_impl = context;
-	executor_t* executor = context_impl->executor;
+	executor_t* executor = context;
 
 	while (!executor->halt) {
-		task_t* task;
-		ts_llist_queue_dequeue(&executor->queue, &executor->halt,
-			(void**)&task);
-
-		// Continue if the task is NULL (null enqueued or no tasks available)
-		if (!task) {
-			continue;
-		}
-
-		// Call the task work function.
-		void_closure_call(&task->work);
-
-		prv_propagate_subtask_progress(task);
-		prv_propagate_dependency_progress(task, executor);
-
-		// If the task has a subgraph, the task is freed in the tail dispose.
-		if (!task->tail) {
-			// TODO: Come up with a more descriptive name for task_free:
-			// it calls the dispose function, which is essentially used to run
-			// code after task finishes; not just freeing the allocated data!
-			task_free(task);
-		}
+		executor_try_get_and_run_task(executor);
 	}
-
-	free(context_impl);
 
 	return NULL;
 }
@@ -94,11 +92,8 @@ executor_init(executor_t* executor)
 	executor->workers = malloc(sizeof(pthread_t) * NUM_THREADS);
 
 	for (uint64_t i = 0; i < NUM_THREADS; ++i) {
-		prv_worker_ctx_t* ctx = malloc(sizeof *ctx);
-		ctx->executor = executor;
-		ctx->id = i;
-
-		pthread_create(executor->workers + i, NULL, &prv_worker_thread, ctx);
+		pthread_create(
+			executor->workers + i, NULL, &prv_worker_thread, executor);
 	}
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
