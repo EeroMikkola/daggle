@@ -340,19 +340,7 @@ DAGGLE_API daggle_error_code_t
 daggle_node_declare_output(daggle_node_h node, const char* port_name);
 
 DAGGLE_API daggle_error_code_t
-daggle_node_declare_task(daggle_node_h node, daggle_task_callback_fn task);
-
-// Declare a context available in the declared task.
-// If this is not called, context will implicitly be set to the node handle.
-// The value of context is passed to the declared task.
-// It is reset when node is redeclared.
-// If the destructor is set, context is passed to it.
-// It is created in node declaration, and should be considered *immutable*.
-// The previous state is not available in declaration, and must always be
-// recreated.
-DAGGLE_API daggle_error_code_t
-daggle_node_declare_context(daggle_node_h node, void* context /* nullable */,
-	daggle_node_context_free_fn destructor /* nullable */);
+daggle_node_declare_task_v2(daggle_node_h node, daggle_task_h task);
 
 // ### EDGE MANAGEMENT
 

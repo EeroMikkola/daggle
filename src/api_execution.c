@@ -33,7 +33,7 @@ prv_graph_master_task_dispose(void* context)
 	graph->locked = false;
 }
 
-void
+/*void
 prv_node_call_function(daggle_task_h task, void* context)
 {
 	node_t* node = context;
@@ -58,7 +58,7 @@ prv_node_call_dispose(void* context)
 	if(node->custom_context_destructor) {
 		node->custom_context_destructor(node->custom_context);
 	}
-}
+}*/
 
 daggle_error_code_t
 prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
@@ -103,12 +103,13 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 			}
 		}
 
-		task_t* tk;
-		daggle_task_create(prv_node_call_function, prv_node_call_dispose, node,
-			(char*)node->info->name_hash.name, (daggle_task_h*)&tk);
+		//task_t* tk;
+		//daggle_task_create(prv_node_call_function, prv_node_call_dispose, node,
+		//	(char*)node->info->name_hash.name, (daggle_task_h*)&tk);
 
-		// TODO: handle error, must task_free(tk) every initialized array
-		dynamic_array_push(&tasks, &tk);
+		// TODO: Allow tasks to be reused.
+		dynamic_array_push(&tasks, &node->task);
+		node->task = NULL;
 	}
 
 	// Construct dependencies with node links.

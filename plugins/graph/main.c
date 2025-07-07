@@ -120,7 +120,9 @@ input_bridge(daggle_node_h handle)
 	daggle_node_declare_input(handle, "_bridge", DAGGLE_INPUT_BEHAVIOR_ACQUIRE,
 		null_default_value);
 
-	daggle_node_declare_task(handle, input_bridge_impl);
+	daggle_task_h task;
+	daggle_task_create(input_bridge_impl, NULL, handle, "input_bridge", &task);
+	daggle_node_declare_task_v2(handle, task);
 }
 
 void
@@ -132,7 +134,9 @@ output_bridge(daggle_node_h handle)
 
 	daggle_node_declare_output(handle, "_bridge");
 
-	daggle_node_declare_task(handle, output_bridge_impl);
+	daggle_task_h task;
+	daggle_task_create(output_bridge_impl, NULL, handle, "output_bridge", &task);
+	daggle_node_declare_task_v2(handle, task);
 }
 
 typedef struct graph_invoker_context_s {
@@ -255,6 +259,12 @@ invoker_read_task(daggle_task_h task, void* context)
 }
 
 void
+invoker_read_task_empty(daggle_task_h task, void* context)
+{
+	
+}
+
+void
 graph_invoker_impl(daggle_task_h task, void* context)
 {
 	graph_invoker_context_t* ctx = context;
@@ -333,12 +343,18 @@ graph_invoker(daggle_node_h handle)
 	daggle_node_get_port_by_name(handle, "graph", &graph_port);
 	daggle_port_get_value(graph_port, &ctx->graph);
 
+	daggle_task_h task;
+
 	if (ctx->graph) {
 		graph_invoker_declare_graph_bridges(handle, ctx->graph);
-		daggle_node_declare_task(handle, graph_invoker_impl);
+		daggle_task_create(graph_invoker_impl, graph_invoker_context_dispose, ctx, "graph_invoker", &task);
+		//daggle_node_declare_task(handle, graph_invoker_impl);
+	} else {
+		daggle_task_create(invoker_read_task_empty, graph_invoker_context_dispose, ctx, "graph_invoker", &task);
 	}
 
-	daggle_node_declare_context(handle, ctx, graph_invoker_context_dispose);
+	daggle_node_declare_task_v2(handle, task);
+	//daggle_node_declare_context(handle, ctx, graph_invoker_context_dispose);
 }
 
 PLUGIN_API void

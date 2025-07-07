@@ -93,32 +93,14 @@ daggle_node_declare_output(daggle_node_h node, const char* port_name)
 		false, NULL));
 }
 
-daggle_error_code_t
-daggle_node_declare_task(daggle_node_h node, daggle_task_callback_fn task)
+DAGGLE_API daggle_error_code_t
+daggle_node_declare_task_v2(daggle_node_h node, daggle_task_h task)
 {
 	REQUIRE_PARAMETER(node);
 	REQUIRE_PARAMETER(task);
 
 	node_t* node_impl = node;
-	node_impl->instance_task = task;
-
-	RETURN_STATUS(DAGGLE_SUCCESS);
-}
-
-daggle_error_code_t
-daggle_node_declare_context(daggle_node_h node, void* context,
-	daggle_node_context_free_fn destructor)
-{
-	REQUIRE_PARAMETER(node);
-
-	node_t* internal_node = node;
-
-	if (internal_node->custom_context_destructor) {
-		internal_node->custom_context_destructor(internal_node->custom_context);
-	}
-
-	internal_node->custom_context = context;
-	internal_node->custom_context_destructor = destructor;
+	node_impl->task = task;
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }

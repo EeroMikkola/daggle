@@ -446,11 +446,9 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
 
 		node_t* node = malloc(sizeof *node);
 
-		node->instance_task = NULL;
+		node->task = NULL;
 		node->info = info;
 		node->graph = graph;
-		node->custom_context = NULL;
-		node->custom_context_destructor = NULL;
 
 		// Initialize port array
 		dynamic_array_init(node_entry->num_ports, sizeof(port_t), &node->ports);
