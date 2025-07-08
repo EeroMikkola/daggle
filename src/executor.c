@@ -3,13 +3,17 @@
 #include "stdatomic.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "utility/log_macro.h"
 #include "utility/return_macro.h"
+#include "stdint.h"
 
-#define NUM_THREADS 2
+#define NUM_THREADS 1
 
 void
 task_free(task_t* task)
 {
+	LOG_FMT_COND_DEBUG("Task dispose %s (%p)", task->id, task);
+
 	if(task->dispose) {
 		task->dispose(task->context);
 	}
@@ -21,19 +25,25 @@ task_free(task_t* task)
 void
 prv_propagate_subtask_progress(task_t* task)
 {
+	task_t* head = task->head;
+	LOG_FMT_COND_DEBUG("Task progress %s (%p) %llu:%llu p:%s (%p)", task->id, task, atomic_load(&task->num_pending_subtasks)-1, task->num_subtasks, (head ? head->id : "null"), head);
+
+	ASSERT_TRUE(atomic_load(&task->num_pending_subtasks) != 0, "Subgraph completion called multiple times");
+
 	if (atomic_fetch_sub(&task->num_pending_subtasks, 1) > 1) {
 		return;
 	}
 
 	if(task->complete) {
+		LOG_FMT_COND_DEBUG("Task complete %s (%p)", task->id, task);
 		task->complete(task, task->context);
 	}
 
-	if (!task->head) {
+	if (!head) {
 		return;
 	}
 
-	prv_propagate_subtask_progress(task->head);
+	prv_propagate_subtask_progress(head);
 }
 
 void
@@ -61,13 +71,16 @@ executor_try_get_and_run_task(executor_t* executor) {
 		return;
 	}
 
+	printf("\n");
+	LOG_FMT_COND_DEBUG("Task run %s (%p)", task->id, task);
+
 	// Call the task work function.
 	if(task->start) {
 		task->start(task, task->context);
 	}
 
-	prv_propagate_subtask_progress(task);
 	prv_propagate_dependency_progress(task, executor);
+	prv_propagate_subtask_progress(task);
 
 	// If the task has a subgraph, the task is freed in the tail dispose.
 	if (!task->tail) {

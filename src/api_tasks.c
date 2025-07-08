@@ -3,7 +3,12 @@
 #include "stdatomic.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "string.h"
+#include "utility/dynamic_array.h"
+#include "utility/log_macro.h"
 #include "utility/return_macro.h"
+#include <stdlib.h>
+#include <string.h>
 
 void
 prv_sink_closure(daggle_task_h task, void* context)
@@ -38,6 +43,10 @@ daggle_task_create(daggle_task_callback_fn start, daggle_task_callback_fn comple
 	task->dispose = dispose;
 	task->context = context;
 
+	task->id = strdup(id);
+
+	LOG_FMT_COND_DEBUG("Task create %s (%p)", task->id, task);
+
 	*out_task = task;
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
@@ -48,6 +57,8 @@ daggle_task_create(daggle_task_callback_fn start, daggle_task_callback_fn comple
 daggle_error_code_t
 prv_task_depend_flat(task_t* task, task_t* dependency)
 {
+	LOG_FMT_COND_DEBUG("Task dependency %s (%p) -> %s (%p)", task->id, task, dependency->id, dependency);
+
 	atomic_fetch_add(&task->num_pending_dependencies, 1);
 	dynamic_array_push(&dependency->dependants, &task);
 
@@ -65,9 +76,21 @@ daggle_task_depend(daggle_task_h task, daggle_task_h dependency)
 		dependency_impl = dependency_impl->tail;
 	}
 
-	RETURN_STATUS(prv_task_depend_flat(task, dependency_impl));
+	task_t* task_impl = task;
+
+	// TODO: Enable this. Has not been tested, but might fix a bug if task has subtask
+	//if (task_impl->tail && task_impl->tail != task_impl
+	//	&& task_impl->tail->head == task_impl) {
+	//	task_impl = task_impl->tail;
+	//}
+
+	RETURN_STATUS(prv_task_depend_flat(task_impl, dependency_impl));
 }
 
+// TODO: There should be two options: parallel and serial
+// 1) When two subgraphs are added, they exist in parallel (depends on subgraph head, dependant of sink)
+// 2) When the second subgraph is added, it is executed after the first (depends on task sink, dependant of another sink)
+// The current behavior is serial.
 daggle_error_code_t
 daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 	uint64_t num_tasks)
@@ -78,29 +101,35 @@ daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 	// TODO: Check for cycles
 
 	task_t* task_impl = task;
-	daggle_task_h* tasks_impl = tasks;
+
+	LOG_FMT_COND_DEBUG("Task subgraph %s (%p) n:%llu", task_impl->id, task_impl, num_tasks);
 
 	task_t* tail = NULL;
 	if (task_impl->tail == NULL) {
-		tail = malloc(sizeof(task_t));
-		tail->tail = NULL;
+		char* id = malloc(sizeof(char) * (strlen(task_impl->id) + 5));
+		strcat(id, task_impl->id);
+		strcat(id, ".tail");
+
+		daggle_task_create(prv_sink_closure, NULL, prv_sink_dispose, task_impl, id, (void*)&tail);
+
+		free(id);
+
+		// Set the head (the task the tail is a subtask of) to the task.
 		tail->head = task_impl;
 
-		tail->num_subtasks = 0;
-		atomic_store(&tail->num_pending_subtasks, 1);
+		// As task does not have a tail, it should not have subtasks.
+		ASSERT_TRUE(task_impl->num_subtasks == 0, "task_impl->num_subtasks == 0");
 
-		tail->start = prv_sink_closure;
-		tail->dispose = prv_sink_dispose;
-		tail->complete = NULL;
-		tail->context = task_impl;
-		atomic_store(&tail->num_pending_dependencies, 0);
+		// Add tail to subtasks/
+		task_impl->num_subtasks += 1;
+		atomic_fetch_add(&task_impl->num_pending_subtasks, 1);
 
-		// Sink is a subtask
-		task_impl->num_subtasks = 1;
-
-		// Transfer dependants to sink.
+		// Swap tail and task dependants.
+		dynamic_array_t temp = tail->dependants;
 		tail->dependants = task_impl->dependants;
-		dynamic_array_init(0, sizeof(task_t*), &task_impl->dependants);
+		task_impl->dependants = temp;
+
+		prv_task_depend_flat(tail, task_impl);
 
 		// Set the tail.
 		task_impl->tail = tail;
@@ -110,9 +139,6 @@ daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 
 	task_impl->num_subtasks += num_tasks;
 	atomic_fetch_add(&task_impl->num_pending_subtasks, num_tasks);
-	for (uint64_t i = 0; i < num_tasks; ++i) {
-		task_t* subtask = tasks[i];
-	}
 
 	for (uint64_t i = 0; i < num_tasks; ++i) {
 		task_t* subtask = tasks[i];

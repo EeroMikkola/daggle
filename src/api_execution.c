@@ -13,51 +13,35 @@
 #include "utility/thread_safe_linked_queue.h"
 
 #include <daggle/daggle.h>
+#include <stdio.h>
+#include "string.h"
 
 void
-prv_graph_master_task_function(daggle_task_h task, void* context)
+prv_graph_master_task_start(daggle_task_h task, void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
 	LOG(LOG_TAG_INFO, "Run Graph");
 }
 
 void
-prv_graph_master_task_dispose(void* context)
+prv_graph_master_task_complete(daggle_task_h task, void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
+	LOG(LOG_TAG_INFO, "Complete Graph");
+
 	graph_t* graph = context;
-
-	LOG(LOG_TAG_INFO, "Finish Graph");
-
 	graph->locked = false;
 }
 
-/*void
-prv_node_call_function(daggle_task_h task, void* context)
-{
-	node_t* node = context;
-	
-	node->instance_task(task, node->custom_context);
-}
-
 void
-prv_node_call_dispose(void* context)
+prv_graph_master_task_dispose(void* context)
 {
-	node_t* node = context;
+	ASSERT_NOT_NULL(context, "context is null");
+	LOG(LOG_TAG_INFO, "Dispose Graph");
 
-	// Subtract reference accesses.
-	for (uint64_t i = 0; i < node->ports.length; ++i) {
-		port_t* port = dynamic_array_at(&node->ports, i);
-		if(port->port_variant == DAGGLE_PORT_INPUT && port->variant.input.behavior == DAGGLE_INPUT_BEHAVIOR_REFERENCE && port->variant.input.link) {
-			port_t* link = port->variant.input.link;
-			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
-		}
-	}
-	
-	if(node->custom_context_destructor) {
-		node->custom_context_destructor(node->custom_context);
-	}
-}*/
+	graph_t* graph = context;
+	//graph->locked = false;
+}
 
 typedef struct prv_node_task_wrapper_ctx {
 	task_t* task;
@@ -243,10 +227,12 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 	dynamic_array_init(0, sizeof(task_t*), &master_task->dependants);
 	atomic_store(&master_task->num_pending_dependencies, 0);
 
-	master_task->start = prv_graph_master_task_function;
-	master_task->complete = NULL;
+	master_task->start = prv_graph_master_task_start;
+	master_task->complete = prv_graph_master_task_complete;
 	master_task->dispose = prv_graph_master_task_dispose;
 	master_task->context = graph;
+
+	master_task->id = strdup("master");
 
 	daggle_task_add_subgraph(master_task, tasks.data, tasks.length);
 	dynamic_array_destroy(&tasks);
@@ -287,6 +273,7 @@ daggle_graph_execute(daggle_instance_h instance, daggle_graph_h graph)
 	REQUIRE_PARAMETER(instance);
 	REQUIRE_PARAMETER(graph);
 
+	printf("daggle_graph_execute\n");
 	daggle_task_h task;
 	daggle_graph_taskify(graph, &task);
 	daggle_task_execute(instance, task);

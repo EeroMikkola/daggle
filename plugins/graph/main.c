@@ -274,10 +274,10 @@ graph_invoker_impl(daggle_task_h task, void* context)
 	daggle_graph_taskify(graph, &graph_task);
 
 	daggle_task_h read_task;
-	daggle_task_create(invoker_read_task, NULL, NULL, ctx, "read", &read_task);
+	daggle_task_create(invoker_read_task, NULL, NULL, ctx, "invoker_read", &read_task);
 
 	daggle_task_h write_task;
-	daggle_task_create(invoker_write_task, NULL, NULL, ctx, "write", &write_task);
+	daggle_task_create(invoker_write_task, NULL, NULL, ctx, "invoker_write", &write_task);
 
 	daggle_task_depend(graph_task, read_task);
 	daggle_task_depend(write_task, graph_task);

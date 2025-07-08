@@ -93,7 +93,7 @@ math_gen_task(daggle_node_h handle)
 	math_context->node = handle;
 
 	daggle_task_h task;
-	daggle_task_create(NULL, NULL, NULL, math_context, "input", &task);
+	daggle_task_create(NULL, NULL, NULL, math_context, "math", &task);
 
 	daggle_task_h reader_task;
 	daggle_task_create(math_read_fn, NULL, NULL, math_context, "math_read\0",

@@ -12,6 +12,8 @@ typedef struct task_s {
 	daggle_task_callback_dispose_fn dispose;
 	void* context;
 
+	char* id;
+
 	struct task_s* head; // Parent of the subgraph this is a part of
 	struct task_s* tail; // Tail of this' own subgraph
 
