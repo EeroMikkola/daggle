@@ -46,6 +46,7 @@ set(DAGGLE_SRC
     src/ports.c
     src/resource_container.c
     src/serialization.c
+    src/task.c
     src/thread_safe_llist_queue.c
 )
 

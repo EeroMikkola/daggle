@@ -1,8 +1,6 @@
 #pragma once
 
-#include "pthread.h"
 #include "utility/dynamic_array.h"
-#include "utility/thread_safe_linked_queue.h"
 
 #include <daggle/daggle.h>
 
