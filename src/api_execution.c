@@ -1,4 +1,5 @@
 #include "executor.h"
+#include "task.h"
 #include "graph.h"
 #include "instance.h"
 #include "node.h"
