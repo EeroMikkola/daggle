@@ -6,11 +6,15 @@
 
 #include <daggle/daggle.h>
 
-typedef struct task_s {
+typedef struct task_callbacks_s {
 	daggle_task_callback_fn start;
 	daggle_task_callback_fn complete;
 	daggle_task_callback_dispose_fn dispose;
 	void* context;
+} task_callbacks_t;
+
+typedef struct task_s {
+	task_callbacks_t callbacks;
 
 	char* id;
 
@@ -32,6 +36,11 @@ typedef struct executor {
 
 void
 task_free(task_t* task);
+
+void
+task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start, 
+	daggle_task_callback_fn complete, daggle_task_callback_dispose_fn dispose, 
+	void* context);
 
 daggle_error_code_t
 executor_init(executor_t* executor);

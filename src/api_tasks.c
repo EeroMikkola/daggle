@@ -38,10 +38,14 @@ daggle_task_create(daggle_task_callback_fn start, daggle_task_callback_fn comple
 	dynamic_array_init(0, sizeof(task_t*), &task->dependants);
 	atomic_store(&task->num_pending_dependencies, 0);
 
-	task->start = start;
-	task->complete = complete;
-	task->dispose = dispose;
-	task->context = context;
+	task_callbacks_t callbacks = {
+		.start = start,
+		.complete = complete,
+		.dispose = dispose,
+		.context = context,
+	};
+
+	task->callbacks = callbacks;
 
 	task->id = strdup(id);
 

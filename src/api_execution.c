@@ -31,38 +31,9 @@ prv_graph_master_task_complete(daggle_task_h task, void* context)
 	graph->locked = false;
 }
 
-typedef struct prv_node_task_wrapper_ctx {
-	task_t* task;
-	node_t* node;
-	daggle_task_callback_fn start;
-	daggle_task_callback_fn complete;
-	daggle_task_callback_dispose_fn dispose;
-	void* context;
-} prv_node_task_wrapper_ctx_t;
-
 void
-prv_node_task_wrapper_start(daggle_task_h task, void* context)
-{
-	ASSERT_NOT_NULL(context, "context is null");
-
-	prv_node_task_wrapper_ctx_t* context_impl = context;
-
-	//LOG_FMT(LOG_TAG_INFO, "Started %s", context_impl->node->info->name_hash.name);
-
-	if(context_impl->start) {
-		context_impl->start(context_impl->task, context_impl->context);
-	}
-}
-
-void
-prv_node_task_wrapper_complete(daggle_task_h task, void* context)
-{
-	ASSERT_NOT_NULL(context, "context is null");
-
-	prv_node_task_wrapper_ctx_t* context_impl = context;
-	node_t* node = context_impl->node;
-
-	//LOG_FMT(LOG_TAG_INFO, "Completed %s", node->info->name_hash.name);
+prv_node_on_complete(daggle_task_h task, void* context) {
+	node_t* node = context;
 
 	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* port = dynamic_array_at(&node->ports, i);
@@ -71,20 +42,6 @@ prv_node_task_wrapper_complete(daggle_task_h task, void* context)
 			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
 		}
 	}
-}
-
-void
-prv_node_task_wrapper_dispose(void* context)
-{
-	ASSERT_NOT_NULL(context, "context is null");
-
-	prv_node_task_wrapper_ctx_t* context_impl = context;
-
-	if (context_impl->dispose) {
-		context_impl->dispose(context_impl->context);
-	}
-
-	free(context_impl);
 }
 
 daggle_error_code_t
@@ -133,19 +90,7 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 		task_t* task = node->task;
 
 		// Create a wrapper context for the task
-		prv_node_task_wrapper_ctx_t* ctx = malloc(sizeof *ctx);
-		ctx->node = node;
-		ctx->context = task->context;
-		ctx->start = task->start;
-		ctx->complete = task->complete;
-		ctx->dispose = task->dispose;
-		ctx->task = node->task;
-
-		// Wrap the task
-		task->start = prv_node_task_wrapper_start;
-		task->complete = prv_node_task_wrapper_complete;
-		task->dispose = prv_node_task_wrapper_dispose;
-		task->context = ctx;
+		task_add_callback_wrapper(task, NULL, prv_node_on_complete, NULL, node);
 
 		dynamic_array_push(&tasks, &node->task);
 

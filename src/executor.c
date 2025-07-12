@@ -9,17 +9,99 @@
 
 #define NUM_THREADS 1
 
+typedef struct prv_task_wrapper_ctx {
+	task_callbacks_t wrapper;
+	task_callbacks_t original;
+} prv_task_wrapper_ctx_t;
+
+void
+prv_task_wrapper_start(daggle_task_h task, void* context)
+{
+	ASSERT_NOT_NULL(context, "context is null");
+
+	prv_task_wrapper_ctx_t* ctx = context;
+
+	if(ctx->wrapper.start) {
+		ctx->wrapper.start(task, ctx->wrapper.context);
+	}
+
+	if(ctx->original.start) {
+		ctx->original.start(task, ctx->original.context);
+	}
+}
+
+void
+prv_task_wrapper_complete(daggle_task_h task, void* context)
+{
+	ASSERT_NOT_NULL(context, "context is null");
+
+	prv_task_wrapper_ctx_t* ctx = context;
+
+	if(ctx->wrapper.complete) {
+		ctx->wrapper.complete(task, ctx->wrapper.context);
+	}
+
+	if(ctx->original.complete) {
+		ctx->original.complete(task, ctx->original.context);
+	}
+}
+
+void
+prv_task_wrapper_dispose(void* context)
+{
+	ASSERT_NOT_NULL(context, "context is null");
+
+	prv_task_wrapper_ctx_t* ctx = context;
+
+	if(ctx->wrapper.dispose) {
+		ctx->wrapper.dispose(ctx->wrapper.context);
+	}
+
+	if(ctx->original.dispose) {
+		ctx->original.dispose(ctx->original.context);
+	}
+
+	free(ctx);
+}
+
 void
 task_free(task_t* task)
 {
 	LOG_FMT_COND_DEBUG("Task dispose %s (%p)", task->id, task);
 
-	if(task->dispose) {
-		task->dispose(task->context);
+	if(task->callbacks.dispose) {
+		task->callbacks.dispose(task->callbacks.context);
 	}
 	
 	dynamic_array_destroy(&task->dependants);
 	free(task);
+}
+
+void
+task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start, 
+	daggle_task_callback_fn complete, daggle_task_callback_dispose_fn dispose, 
+	void* context) {
+
+	prv_task_wrapper_ctx_t* wctx = malloc(sizeof(*wctx));
+
+	task_callbacks_t wrapper = {
+		.start = start,
+		.complete = complete,
+		.dispose = dispose,
+		.context = context,
+	};
+
+	wctx->wrapper = wrapper;
+	wctx->original = task->callbacks;
+
+	task_callbacks_t handlers = {
+		.start = prv_task_wrapper_start,
+		.complete = prv_task_wrapper_complete,
+		.dispose = prv_task_wrapper_dispose,
+		.context = wctx,
+	};
+
+	task->callbacks = handlers;
 }
 
 void
@@ -34,9 +116,9 @@ prv_propagate_subtask_progress(task_t* task)
 		return;
 	}
 
-	if(task->complete) {
+	if(task->callbacks.complete) {
 		LOG_FMT_COND_DEBUG("Task complete %s (%p)", task->id, task);
-		task->complete(task, task->context);
+		task->callbacks.complete(task, task->callbacks.context);
 	}
 
 	if (!head) {
@@ -74,8 +156,8 @@ executor_try_get_and_run_task(executor_t* executor) {
 	LOG_FMT_COND_DEBUG("Task run %s (%p)", task->id, task);
 
 	// Call the task work function.
-	if(task->start) {
-		task->start(task, task->context);
+	if(task->callbacks.start) {
+		task->callbacks.start(task, task->callbacks.context);
 	}
 
 	prv_propagate_dependency_progress(task, executor);
@@ -83,9 +165,6 @@ executor_try_get_and_run_task(executor_t* executor) {
 
 	// If the task has a subgraph, the task is freed in the tail dispose.
 	if (!task->tail) {
-		// TODO: Come up with a more descriptive name for task_free:
-		// it calls the dispose function, which is essentially used to run
-		// code after task finishes; not just freeing the allocated data!
 		task_free(task);
 	}
 }
