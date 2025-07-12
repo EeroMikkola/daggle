@@ -71,7 +71,6 @@ executor_try_get_and_run_task(executor_t* executor) {
 		return;
 	}
 
-	printf("\n");
 	LOG_FMT_COND_DEBUG("Task run %s (%p)", task->id, task);
 
 	// Call the task work function.

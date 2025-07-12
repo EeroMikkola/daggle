@@ -354,11 +354,11 @@ prv_deserialize_port(daggle_instance_h instance, node_t* node,
 	const port_entry_1_t* port_entry = ports + global_index;
 	const char* port_name = strings + port_entry->name_stoff;
 
-	printf("- Port: %s\n", port_name);
-	printf("  - Index: port[%llu]\n", global_index);
+	//printf("- Port: %s\n", port_name);
+	//printf("  - Index: port[%llu]\n", global_index);
 
 	const char* pvarnames[] = { "INPUT", "OUTPUT", "PARAMETER" };
-	printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
+	//printf("  - Variant: %s\n", pvarnames[port_entry->port_variant]);
 
 	daggle_port_variant_t variant;
 	variant = prv_port_variant_1_to_daggle(port_entry->port_variant);
@@ -368,10 +368,10 @@ prv_deserialize_port(daggle_instance_h instance, node_t* node,
 	// Deserialize input port variant
 	if (port_entry->port_variant == INPUT) {
 		const char* ivarnames[] = { "REFERENCE", "ACQUIRE" };
-		printf("  - Input: %s\n", ivarnames[port_entry->port_specific.input]);
+		//printf("  - Input: %s\n", ivarnames[port_entry->port_specific.input]);
 
 		if (port_entry->edge_ptidx != UINT64_MAX) {
-			printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
+			//printf("  - Link: port[%llu]\n", port_entry->edge_ptidx);
 		}
 
 		daggle_input_behavior_t input_behavior;
@@ -387,7 +387,7 @@ prv_deserialize_port(daggle_instance_h instance, node_t* node,
 
 		const char* data_type = strings + data_entry->type_stoff;
 
-		printf("  - Data: %s (%lluB)\n", data_type, data_entry->size);
+		//printf("  - Data: %s (%lluB)\n", data_type, data_entry->size);
 
 		void* deserialized_data = NULL;
 		daggle_data_deserialize(instance, data_type, data_entry->bytes,
@@ -428,8 +428,7 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
 	graph_t* graph;
 	daggle_graph_create(instance, (daggle_graph_h)&graph);
 
-	printf("Version: %llu\nNodes: %llu\nPorts: %llu\n", version, num_nodes,
-		num_ports);
+	//printf("Version: %llu\nNodes: %llu\nPorts: %llu\n", version, num_nodes, num_ports);
 
 	for (int node_index = 0; node_index < num_nodes; node_index++) {
 		const node_entry_1_t* node_entry = nodes + node_index;
@@ -437,7 +436,7 @@ prv_graph_deserialize_1(daggle_instance_h instance, const unsigned char* bin,
 		const char* node_name = strings + node_entry->name_stoff;
 		const char* node_type = strings + node_entry->type_stoff;
 
-		printf("Node: %s (%s)\n", node_name, node_type);
+		//printf("Node: %s (%s)\n", node_name, node_type);
 
 		// Construct node
 		node_info_t* info;

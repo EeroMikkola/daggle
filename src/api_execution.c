@@ -20,27 +20,15 @@ void
 prv_graph_master_task_start(daggle_task_h task, void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
-	LOG(LOG_TAG_INFO, "Run Graph");
 }
 
 void
 prv_graph_master_task_complete(daggle_task_h task, void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
-	LOG(LOG_TAG_INFO, "Complete Graph");
 
 	graph_t* graph = context;
 	graph->locked = false;
-}
-
-void
-prv_graph_master_task_dispose(void* context)
-{
-	ASSERT_NOT_NULL(context, "context is null");
-	LOG(LOG_TAG_INFO, "Dispose Graph");
-
-	graph_t* graph = context;
-	//graph->locked = false;
 }
 
 typedef struct prv_node_task_wrapper_ctx {
@@ -217,22 +205,10 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 		}
 	}
 
-	task_t* master_task = malloc(sizeof(task_t));
-	master_task->tail = NULL;
-	master_task->head = NULL;
-
-	master_task->num_subtasks = 0;
-	atomic_store(&master_task->num_pending_subtasks, 1);
-
-	dynamic_array_init(0, sizeof(task_t*), &master_task->dependants);
-	atomic_store(&master_task->num_pending_dependencies, 0);
-
-	master_task->start = prv_graph_master_task_start;
-	master_task->complete = prv_graph_master_task_complete;
-	master_task->dispose = prv_graph_master_task_dispose;
-	master_task->context = graph;
-
-	master_task->id = strdup("master");
+	daggle_task_h master_task;
+	daggle_task_create(prv_graph_master_task_start, 
+		prv_graph_master_task_complete, NULL, graph,
+		 "master", &master_task);
 
 	daggle_task_add_subgraph(master_task, tasks.data, tasks.length);
 	dynamic_array_destroy(&tasks);
@@ -273,7 +249,6 @@ daggle_graph_execute(daggle_instance_h instance, daggle_graph_h graph)
 	REQUIRE_PARAMETER(instance);
 	REQUIRE_PARAMETER(graph);
 
-	printf("daggle_graph_execute\n");
 	daggle_task_h task;
 	daggle_graph_taskify(graph, &task);
 	daggle_task_execute(instance, task);
