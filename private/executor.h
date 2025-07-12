@@ -37,10 +37,15 @@ typedef struct executor {
 void
 task_free(task_t* task);
 
+// Add callbacks to call before the original. Use to add multiple callbacks to a task.
 void
 task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start, 
 	daggle_task_callback_fn complete, daggle_task_callback_dispose_fn dispose, 
 	void* context);
+
+// Remove the wrapper. Assumes the task is wrapped; there is no validation mechanism in place.
+void
+task_remove_callback_wrapper(task_t* task);
 
 daggle_error_code_t
 executor_init(executor_t* executor);

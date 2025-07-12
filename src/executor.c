@@ -105,6 +105,23 @@ task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start,
 }
 
 void
+task_remove_callback_wrapper(task_t* task) {
+	ASSERT_NOT_NULL(task->callbacks.context, "context null");
+
+	prv_task_wrapper_ctx_t* context = task->callbacks.context;
+
+	// Dispose the wrapper
+	ASSERT_NOT_NULL(task->callbacks.dispose, "missing dispose");
+	context->wrapper.dispose(context->wrapper.context);
+
+	// Replace callbacks with the original.
+	task->callbacks = context->original;
+
+	// Free the wrapper context
+	free(context);
+}
+
+void
 prv_propagate_subtask_progress(task_t* task)
 {
 	task_t* head = task->head;
