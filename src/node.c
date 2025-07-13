@@ -1,6 +1,6 @@
 #include "node.h"
 
-#include "data_container.h"
+#include "task.h"
 #include "graph.h"
 #include "instance.h"
 #include "stdatomic.h"
@@ -10,6 +10,7 @@
 #include "utility/dynamic_array.h"
 #include "utility/hash.h"
 #include "utility/return_macro.h"
+#include <string.h>
 
 daggle_error_code_t
 node_create(daggle_graph_h graph, const char* node_type, node_t** out_node)
@@ -37,13 +38,10 @@ node_create(daggle_graph_h graph, const char* node_type, node_t** out_node)
 		RETURN_STATUS(error);
 	}
 
-	node->instance_task = NULL;
+	node->task = NULL;
 	node->info = info;
 
 	node->graph = graph_impl;
-
-	node->custom_context = NULL;
-	node->custom_context_destructor = NULL;
 
 	node_compute_declarations(node);
 
@@ -56,8 +54,9 @@ node_free(node_t* node)
 {
 	ASSERT_PARAMETER(node);
 
-	if (node->custom_context_destructor) {
-		node->custom_context_destructor(node->custom_context);
+	if(node->task) {
+		task_free(node->task);
+		node->task = NULL;
 	}
 
 	for (uint64_t i = 0; i < node->ports.length; ++i) {
@@ -111,12 +110,10 @@ node_compute_declarations(node_t* node)
 {
 	ASSERT_PARAMETER(node);
 
-	if (node->custom_context_destructor) {
-		node->custom_context_destructor(node->custom_context);
+	if(node->task) {
+		task_free(node->task);
+		node->task = NULL;
 	}
-
-	node->custom_context = NULL;
-	node->custom_context_destructor = NULL;
 
 	// Reset declaration state flags to undeclared.
 	for (uint64_t i = 0; i < node->ports.length; ++i) {
@@ -138,10 +135,5 @@ node_compute_declarations(node_t* node)
 			port_destroy(port);
 			dynamic_array_remove(&node->ports, i);
 		}
-	}
-
-	// If custom context was not set, implicitly use node as the context.
-	if (!node->custom_context_destructor && !node->custom_context) {
-		daggle_node_declare_context(node, node, NULL);
 	}
 }

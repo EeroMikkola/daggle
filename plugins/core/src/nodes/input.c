@@ -1,8 +1,10 @@
 #include "nodes/input.h"
 
+#include "daggle/daggle.h"
 #include "node_utils.h"
 #include "stdlib.h"
 #include "types.h"
+#include <string.h>
 
 void
 input_impl(daggle_task_h task, void* context)
@@ -31,5 +33,8 @@ input(daggle_node_h handle)
 {
 	daggle_node_declare_parameter(handle, "value", input_gdv_value);
 	daggle_node_declare_output(handle, "result");
-	daggle_node_declare_task(handle, input_impl);
+
+	daggle_task_h task;
+	daggle_task_create(input_impl, NULL, NULL, handle, "input", &task);
+	daggle_node_declare_task_v2(handle, task);
 }

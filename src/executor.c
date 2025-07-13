@@ -1,74 +1,45 @@
 #include "executor.h"
+#include "task.h"
 
 #include "stdatomic.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "utility/log_macro.h"
 #include "utility/return_macro.h"
+#include "stdint.h"
+#include "utility/thread_safe_linked_queue.h"
 
-#define NUM_THREADS 2
-
-void
-task_free(task_t* task)
-{
-	void_closure_dispose(&task->work);
-	dynamic_array_destroy(&task->dependants);
-	free(task);
-}
+#define NUM_THREADS 1
 
 void
-prv_propagate_progress(task_t* task)
-{
-	if (atomic_fetch_sub(&task->num_pending_subtasks, 1) == 1) {
-		// Task was completed.
+executor_try_get_and_run_task(executor_t* executor) {
+	task_t* task;
+	ts_llist_queue_dequeue(&executor->queue, &executor->halt,
+		(void**)&task);
 
-		if (task->head) {
-			prv_propagate_progress(task->head);
-		}
+	// Return if task is null. Happens if NULL is enqueued, if no tasks are
+	// available, or if execution was halted.
+	if (!task) {
+		return;
+	}
+
+	// TODO: Consider designing something better. 
+	task_run(task, (void*)ts_llist_queue_enqueue, &executor->queue);
+
+	// If the task has a subgraph, the task is freed in the tail dispose.
+	if (!task->tail) {
+		task_free(task);
 	}
 }
-
-typedef struct prv_worker_ctx {
-	executor_t* executor;
-	uint64_t id;
-} prv_worker_ctx_t;
 
 void*
 prv_worker_thread(void* context)
 {
-	prv_worker_ctx_t* context_impl = context;
-	executor_t* executor = context_impl->executor;
+	executor_t* executor = context;
 
 	while (!executor->halt) {
-		task_t* task;
-		ts_llist_queue_dequeue(&executor->queue, &executor->halt,
-			(void**)&task);
-
-		// Continue if the task is NULL (null enqueued or no tasks available)
-		if (!task) {
-			continue;
-		}
-
-		// Call the task work function.
-		void_closure_call(&task->work);
-
-		prv_propagate_progress(task);
-
-		for (uint64_t i = 0; i < task->dependants.length; ++i) {
-			task_t** tkelem = dynamic_array_at(&task->dependants, i);
-			task_t* tk = *tkelem;
-
-			if (atomic_fetch_sub(&tk->num_pending_dependencies, 1) == 1) {
-				ts_llist_queue_enqueue(&executor->queue, tk);
-			}
-		}
-
-		// If the task has a subgraph, the task is freed in the tail dispose.
-		if (!task->tail) {
-			task_free(task);
-		}
+		executor_try_get_and_run_task(executor);
 	}
-
-	free(context_impl);
 
 	return NULL;
 }
@@ -84,11 +55,8 @@ executor_init(executor_t* executor)
 	executor->workers = malloc(sizeof(pthread_t) * NUM_THREADS);
 
 	for (uint64_t i = 0; i < NUM_THREADS; ++i) {
-		prv_worker_ctx_t* ctx = malloc(sizeof *ctx);
-		ctx->executor = executor;
-		ctx->id = i;
-
-		pthread_create(executor->workers + i, NULL, &prv_worker_thread, ctx);
+		pthread_create(
+			executor->workers + i, NULL, &prv_worker_thread, executor);
 	}
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
@@ -103,6 +71,7 @@ executor_destroy(executor_t* executor)
 	pthread_cond_broadcast(&executor->queue.condition);
 
 	for (uint64_t i = 0; i < NUM_THREADS; ++i) {
+		pthread_cancel(executor->workers[i]);
 		pthread_join(executor->workers[i], NULL);
 	}
 

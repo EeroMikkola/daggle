@@ -1,4 +1,5 @@
 #include "executor.h"
+#include "task.h"
 #include "graph.h"
 #include "instance.h"
 #include "node.h"
@@ -7,56 +8,40 @@
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "utility/closure.h"
 #include "utility/dynamic_array.h"
 #include "utility/log_macro.h"
 #include "utility/return_macro.h"
 #include "utility/thread_safe_linked_queue.h"
 
 #include <daggle/daggle.h>
+#include <stdio.h>
+#include "string.h"
 
 void
-prv_graph_master_task_function(void* context)
+prv_graph_master_task_start(daggle_task_h task, void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
-	LOG(LOG_TAG_INFO, "Run Graph");
 }
 
 void
-prv_graph_master_task_dispose(void* context)
+prv_graph_master_task_complete(daggle_task_h task, void* context)
 {
 	ASSERT_NOT_NULL(context, "context is null");
+
 	graph_t* graph = context;
-
-	LOG(LOG_TAG_INFO, "Finish Graph");
-
 	graph->locked = false;
 }
 
 void
-prv_node_call_function(daggle_task_h task, void* context)
-{
-	node_t* node = context;
-	
-	node->instance_task(task, node->custom_context);
-}
-
-void
-prv_node_call_dispose(void* context)
-{
+prv_node_on_complete(daggle_task_h task, void* context) {
 	node_t* node = context;
 
-	// Subtract reference accesses.
 	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* port = dynamic_array_at(&node->ports, i);
 		if(port->port_variant == DAGGLE_PORT_INPUT && port->variant.input.behavior == DAGGLE_INPUT_BEHAVIOR_REFERENCE && port->variant.input.link) {
 			port_t* link = port->variant.input.link;
 			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
 		}
-	}
-	
-	if(node->custom_context_destructor) {
-		node->custom_context_destructor(node->custom_context);
 	}
 }
 
@@ -103,12 +88,16 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 			}
 		}
 
-		task_t* tk;
-		daggle_task_create(prv_node_call_function, prv_node_call_dispose, node,
-			(char*)node->info->name_hash.name, (daggle_task_h*)&tk);
+		task_t* task = node->task;
 
-		// TODO: handle error, must task_free(tk) every initialized array
-		dynamic_array_push(&tasks, &tk);
+		// Create a wrapper context for the task
+		task_add_callback_wrapper(task, NULL, prv_node_on_complete, NULL, node);
+
+		dynamic_array_push(&tasks, &node->task);
+
+		// TODO: Currently the task is consumed, redeclaration is required.
+		// Instead, could reuse the tasks.
+		node->task = NULL;
 	}
 
 	// Construct dependencies with node links.
@@ -162,19 +151,10 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 		}
 	}
 
-	task_t* master_task = malloc(sizeof(task_t));
-	master_task->tail = NULL;
-	master_task->head = NULL;
-
-	master_task->num_subtasks = 0;
-	atomic_store(&master_task->num_pending_subtasks, 1);
-
-	dynamic_array_init(0, sizeof(task_t*), &master_task->dependants);
-	atomic_store(&master_task->num_pending_dependencies, 0);
-
-	master_task->work.function = prv_graph_master_task_function;
-	master_task->work.dispose = prv_graph_master_task_dispose;
-	master_task->work.context = graph;
+	daggle_task_h master_task;
+	daggle_task_create(prv_graph_master_task_start, 
+		prv_graph_master_task_complete, NULL, graph,
+		 "master", &master_task);
 
 	daggle_task_add_subgraph(master_task, tasks.data, tasks.length);
 	dynamic_array_destroy(&tasks);

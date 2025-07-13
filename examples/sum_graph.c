@@ -99,7 +99,7 @@ main(void)
 
 	daggle_graph_execute(instance, graph);
 
-	unsigned char* bin;
+	/*unsigned char* bin;
 	uint64_t len;
 	daggle_graph_serialize(graph, &bin, &len);
 	daggle_graph_free(graph);
@@ -108,7 +108,7 @@ main(void)
 	daggle_graph_deserialize(instance, bin, &graph2);
 	free(bin);
 
-	daggle_graph_execute(instance, graph2);
+	daggle_graph_execute(instance, graph2);*/
 
 	daggle_instance_free(instance);
 

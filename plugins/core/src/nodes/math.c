@@ -1,5 +1,6 @@
 #include "nodes/math.h"
 
+#include "daggle/daggle.h"
 #include "node_utils.h"
 #include "stdlib.h"
 #include "types.h"
@@ -85,22 +86,25 @@ math_write_dispose(void* context)
 	free((math_context_t*)context);
 }
 
-void
-math_impl(daggle_task_h task, void* context)
+daggle_task_h
+math_gen_task(daggle_node_h handle)
 {
 	math_context_t* math_context = malloc(sizeof *math_context);
-	math_context->node = context;
+	math_context->node = handle;
+
+	daggle_task_h task;
+	daggle_task_create(NULL, NULL, NULL, math_context, "math", &task);
 
 	daggle_task_h reader_task;
-	daggle_task_create(math_read_fn, NULL, math_context, "math_read\0",
+	daggle_task_create(math_read_fn, NULL, NULL, math_context, "math_read\0",
 		&reader_task);
 
 	daggle_task_h calculator_task;
-	daggle_task_create(math_calculate_fn, NULL, math_context,
+	daggle_task_create(math_calculate_fn, NULL, NULL, math_context,
 		"math_calculate\0", &calculator_task);
 
 	daggle_task_h writer_task;
-	daggle_task_create(math_write_fn, math_write_dispose, math_context,
+	daggle_task_create(math_write_fn, NULL, math_write_dispose, math_context,
 		"math_write\0", &writer_task);
 
 	daggle_task_depend(writer_task, calculator_task);
@@ -109,6 +113,8 @@ math_impl(daggle_task_h task, void* context)
 	daggle_task_h subgraph[3] = { reader_task, calculator_task, writer_task };
 
 	daggle_task_add_subgraph(task, (daggle_task_h*)&subgraph, 3);
+
+	return task;
 }
 
 DEFAULT_VALUE_GENERATOR(math_gdv_first, int32_t, 5, INT_TYPE)
@@ -124,5 +130,7 @@ math(daggle_node_h handle)
 		DAGGLE_INPUT_BEHAVIOR_ACQUIRE, math_gdv_second);
 	daggle_node_declare_parameter(handle, "operation", math_gdv_operation);
 	daggle_node_declare_output(handle, "result");
-	daggle_node_declare_task(handle, math_impl);
+	
+	daggle_task_h task = math_gen_task(handle);
+	daggle_node_declare_task_v2(handle, task);
 }

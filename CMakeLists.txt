@@ -36,7 +36,6 @@ set(DAGGLE_SRC
     src/api_node.c
     src/api_port.c
     src/api_tasks.c
-    src/closure.c
     src/data_container.c
     src/dynamic_array.c
     src/executor.c
@@ -47,6 +46,7 @@ set(DAGGLE_SRC
     src/ports.c
     src/resource_container.c
     src/serialization.c
+    src/task.c
     src/thread_safe_llist_queue.c
 )
 
@@ -68,7 +68,7 @@ set_target_properties(daggle PROPERTIES
 target_compile_definitions(daggle PRIVATE 
     DAGGLE_EXPORTS
     DAGGLE_ENABLE_LOG
-    DAGGLE_ENABLE_LOG_CONDITIONAL_DEBUG
+    #DAGGLE_ENABLE_LOG_CONDITIONAL_DEBUG
     DAGGLE_ENABLE_LOG_LOCATION
     DAGGLE_ENABLE_RETURN_STATUS_ERROR_LOGS
     #DAGGLE_ENABLE_RETURN_STATUS_SUCCESS_LOGS
