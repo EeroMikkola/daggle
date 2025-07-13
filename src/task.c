@@ -119,3 +119,55 @@ task_remove_callback_wrapper(task_t* task) {
 	// Free the wrapper context
 	free(context);
 }
+
+void
+prv_propagate_subtask_progress(task_t* task)
+{
+	task_t* head = task->head;
+	LOG_FMT_COND_DEBUG("Task progress %s (%p) %llu:%llu p:%s (%p)", task->id, task, atomic_load(&task->num_pending_subtasks)-1, task->num_subtasks, (head ? head->id : "null"), head);
+
+	ASSERT_TRUE(atomic_load(&task->num_pending_subtasks) != 0, "Subgraph completion called multiple times");
+
+	if (atomic_fetch_sub(&task->num_pending_subtasks, 1) > 1) {
+		return;
+	}
+
+	if(task->callbacks.complete) {
+		LOG_FMT_COND_DEBUG("Task complete %s (%p)", task->id, task);
+		task->callbacks.complete(task, task->callbacks.context);
+	}
+
+	if (!head) {
+		return;
+	}
+
+	prv_propagate_subtask_progress(head);
+}
+
+void
+prv_propagate_dependency_progress(task_t* task, void(*handle_dependant_ready)(void* ctx, task_t* task), void* callback_context)
+{
+	for (uint64_t i = 0; i < task->dependants.length; ++i) {
+		task_t** task_element = dynamic_array_at(&task->dependants, i);
+		task_t* task = *task_element;
+
+		if (atomic_fetch_sub(&task->num_pending_dependencies, 1) == 1) {
+			if(handle_dependant_ready) {
+                handle_dependant_ready(callback_context, task);
+            }
+		}
+	}
+}
+
+void
+task_run(task_t* task, void(*handle_dependant_ready)(void* ctx, task_t* task), void* callback_context) {
+    LOG_FMT_COND_DEBUG("Task run %s (%p)", task->id, task);
+
+	// Call the task work function.
+	if(task->callbacks.start) {
+		task->callbacks.start(task, task->callbacks.context);
+	}
+
+	prv_propagate_dependency_progress(task, handle_dependant_ready, callback_context);
+	prv_propagate_subtask_progress(task);
+}

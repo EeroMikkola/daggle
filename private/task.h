@@ -38,3 +38,6 @@ task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start,
 // Remove the wrapper. Assumes the task is wrapped; there is no validation mechanism in place.
 void
 task_remove_callback_wrapper(task_t* task);
+
+void
+task_run(task_t* task, void(*handle_dependant_ready)(void* ctx, task_t* task), void* callback_context);
