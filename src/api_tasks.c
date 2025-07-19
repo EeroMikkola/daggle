@@ -110,8 +110,8 @@ daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 
 	task_t* tail = NULL;
 	if (task_impl->tail == NULL) {
-		char* id = malloc(sizeof(char) * (strlen(task_impl->id) + 5));
-		strcat(id, task_impl->id);
+		char* id = calloc(strlen(task_impl->id) + 6, sizeof(char));
+		strcpy(id, task_impl->id);
 		strcat(id, ".tail");
 
 		daggle_task_create(prv_sink_closure, NULL, prv_sink_dispose, task_impl, id, (void*)&tail);
