@@ -27,6 +27,11 @@ typedef struct task_callbacks_s {
 
 // Approach would allow changes (predictable and reversable) in the dependency structure.
 
+typedef struct task_execution_s {
+	_Atomic(uint64_t) num_pending_subtasks; // this + sum of subtask progress
+	_Atomic(uint64_t) num_pending_dependencies;
+} task_execution_t;
+
 typedef struct task_s {
 	task_callbacks_t callbacks;
 
@@ -36,10 +41,9 @@ typedef struct task_s {
 	struct task_s* tail; // Tail of this' own subgraph
 
 	uint64_t num_subtasks; // number of subtasks (incl. sink)
-	_Atomic(uint64_t) num_pending_subtasks; // this + sum of subtask progress
-
 	dynamic_array_t dependants;
-	_Atomic(uint64_t) num_pending_dependencies;
+
+	task_execution_t execution;
 } task_t;
 
 void

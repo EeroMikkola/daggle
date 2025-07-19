@@ -219,7 +219,7 @@ daggle_task_execute(daggle_instance_h instance, daggle_task_h task)
 
 	// Note: this is a hack, and sometimes exists too quickly
 	// TODO: come up with a better solution
-	while (atomic_load(&t->num_pending_subtasks) > 0) { }; 
+	while (atomic_load(&t->execution.num_pending_subtasks) > 0) { }; 
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }

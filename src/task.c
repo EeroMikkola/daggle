@@ -123,11 +123,11 @@ void
 prv_propagate_subtask_progress(task_t* task)
 {
 	task_t* head = task->head;
-	LOG_FMT_COND_DEBUG("Task progress %s (%p) %llu:%llu p:%s (%p)", task->id, task, atomic_load(&task->num_pending_subtasks)-1, task->num_subtasks, (head ? head->id : "null"), head);
+	LOG_FMT_COND_DEBUG("Task progress %s (%p) %llu:%llu p:%s (%p)", task->id, task, atomic_load(&task->execution.num_pending_subtasks)-1, task->num_subtasks, (head ? head->id : "null"), head);
 
-	ASSERT_TRUE(atomic_load(&task->num_pending_subtasks) != 0, "Subgraph completion called multiple times");
+	ASSERT_TRUE(atomic_load(&task->execution.num_pending_subtasks) != 0, "Subgraph completion called multiple times");
 
-	if (atomic_fetch_sub(&task->num_pending_subtasks, 1) > 1) {
+	if (atomic_fetch_sub(&task->execution.num_pending_subtasks, 1) > 1) {
 		return;
 	}
 
@@ -150,7 +150,7 @@ prv_propagate_dependency_progress(task_t* task, void(*handle_dependant_ready)(vo
 		task_t** task_element = dynamic_array_at(&task->dependants, i);
 		task_t* task = *task_element;
 
-		if (atomic_fetch_sub(&task->num_pending_dependencies, 1) == 1) {
+		if (atomic_fetch_sub(&task->execution.num_pending_dependencies, 1) == 1) {
 			if(handle_dependant_ready) {
                 handle_dependant_ready(callback_context, task);
             }

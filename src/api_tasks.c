@@ -33,10 +33,10 @@ daggle_task_create(daggle_task_callback_fn start, daggle_task_callback_fn comple
 	task->head = NULL;
 
 	task->num_subtasks = 0;
-	atomic_store(&task->num_pending_subtasks, 1);
+	atomic_store(&task->execution.num_pending_subtasks, 1);
 
 	dynamic_array_init(0, sizeof(task_t*), &task->dependants);
-	atomic_store(&task->num_pending_dependencies, 0);
+	atomic_store(&task->execution.num_pending_dependencies, 0);
 
 	task_callbacks_t callbacks = {
 		.start = start,
@@ -63,7 +63,7 @@ prv_task_depend_flat(task_t* task, task_t* dependency)
 {
 	LOG_FMT_COND_DEBUG("Task dependency %s (%p) -> %s (%p)", task->id, task, dependency->id, dependency);
 
-	atomic_fetch_add(&task->num_pending_dependencies, 1);
+	atomic_fetch_add(&task->execution.num_pending_dependencies, 1);
 	dynamic_array_push(&dependency->dependants, &task);
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
@@ -126,7 +126,7 @@ daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 
 		// Add tail to subtasks/
 		task_impl->num_subtasks += 1;
-		atomic_fetch_add(&task_impl->num_pending_subtasks, 1);
+		atomic_fetch_add(&task_impl->execution.num_pending_subtasks, 1);
 
 		// Swap tail and task dependants.
 		dynamic_array_t temp = tail->dependants;
@@ -142,7 +142,7 @@ daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 	}
 
 	task_impl->num_subtasks += num_tasks;
-	atomic_fetch_add(&task_impl->num_pending_subtasks, num_tasks);
+	atomic_fetch_add(&task_impl->execution.num_pending_subtasks, num_tasks);
 
 	for (uint64_t i = 0; i < num_tasks; ++i) {
 		task_t* subtask = tasks[i];
@@ -157,7 +157,7 @@ daggle_task_add_subgraph(daggle_task_h task, daggle_task_h* tasks,
 		// Make the original task a dependency of every task.
 		// Only tasks without dependencies have to be dependants of the
 		// original task.
-		if (atomic_load(&subtask->num_pending_dependencies) == 0) {
+		if (atomic_load(&subtask->execution.num_pending_dependencies) == 0) {
 			prv_task_depend_flat(subtask, task_impl);
 		}
 
