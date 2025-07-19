@@ -56,8 +56,7 @@ dynamic_array_push(dynamic_array_t* array, void* data)
 		array->capacity = new_capacity;
 	}
 
-	unsigned char* target
-		= (unsigned char*)array->data + (array->length * array->stride);
+	void* target = (void*)array->data + (array->length * array->stride);
 
 	if (data) {
 		// If data is provided, copy stride-bytes from the data.
@@ -68,7 +67,7 @@ dynamic_array_push(dynamic_array_t* array, void* data)
 		memset(target, '\0', sizeof(char) * array->stride);
 	}
 
-	array->length++;
+	array->length += 1;
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }
 

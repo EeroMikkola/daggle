@@ -11,6 +11,22 @@ typedef struct task_callbacks_s {
 	void* context;
 } task_callbacks_t;
 
+// TODO: Separate task definition (callbacks, id, head, tail, dependencies), from the instance (dependants, pending deps/dants)
+
+// TODO: Store declared tasks in an array. Store dynamic tasks in a list.
+
+// TODO: rework subtasks to support static/dynamic task separation
+
+// The static task array is immutable. No new tasks, no changes in dependencies.
+
+// Static task subtasks -> create sink.
+
+// Dynamic task subtasks -> create in dynamic tasks, move complete call to subtask finish.
+// sink would be created in dynamic array. Sink calls the static on complete.
+// Currently support only one subtask; call it set_subtask.
+
+// Approach would allow changes (predictable and reversable) in the dependency structure.
+
 typedef struct task_s {
 	task_callbacks_t callbacks;
 

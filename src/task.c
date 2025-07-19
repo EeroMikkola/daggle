@@ -7,7 +7,6 @@
 #include "utility/return_macro.h"
 #include "stdint.h"
 
-
 typedef struct prv_task_wrapper_ctx {
 	task_callbacks_t wrapper;
 	task_callbacks_t original;

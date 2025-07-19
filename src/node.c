@@ -62,11 +62,6 @@ node_free(node_t* node)
 	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* port = dynamic_array_at(&node->ports, i);
 
-		// Only inputs and outputs have edges. Skip the parameter.
-		if (port->port_variant != DAGGLE_PORT_PARAMETER) {
-			continue;
-		}
-
 		port_destroy(port);
 	}
 

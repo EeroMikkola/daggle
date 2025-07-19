@@ -23,7 +23,6 @@ daggle_graph_create(daggle_instance_h instance, daggle_graph_h* out_graph)
 	dynamic_array_init(0, sizeof(node_t*), &graph->nodes);
 
 	graph->instance = instance;
-	graph->owner = NULL;
 	graph->locked = false;
 
 	*out_graph = graph;
@@ -40,7 +39,6 @@ daggle_graph_free(daggle_graph_h handle)
 	dynamic_array_destroy(&graph->nodes);
 
 	graph->instance = NULL;
-	graph->owner = NULL;
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }

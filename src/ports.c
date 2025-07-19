@@ -12,8 +12,6 @@ port_destroy(port_t* port)
 {
 	ASSERT_PARAMETER(port);
 
-	free((char*)port->name_hash.name);
-
 	if (port->port_variant != DAGGLE_PORT_PARAMETER) {
 		daggle_port_disconnect(port);
 	}
@@ -23,6 +21,10 @@ port_destroy(port_t* port)
 	}
 
 	data_container_destroy(&port->value);
+
+	if(port->name_hash.name) {
+		free((void*)port->name_hash.name);
+	}
 }
 
 void
@@ -44,6 +46,7 @@ port_init(daggle_node_h node, const char* port_name,
 
 	daggle_instance_h instance;
 	daggle_graph_get_daggle(((node_t*)node)->graph, &instance);
+	
 	data_container_init(instance, &port.value);
 
 	if (variant == DAGGLE_PORT_INPUT) {

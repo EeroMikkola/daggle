@@ -65,10 +65,13 @@ set_target_properties(daggle PROPERTIES
     SOVERSION ${PROJECT_VERSION_MAJOR}
 )
 
+#target_compile_options(daggle PRIVATE -fsanitize=address)
+#target_link_options(daggle PRIVATE -fsanitize=address)
+
 target_compile_definitions(daggle PRIVATE 
     DAGGLE_EXPORTS
     DAGGLE_ENABLE_LOG
-    #DAGGLE_ENABLE_LOG_CONDITIONAL_DEBUG
+    DAGGLE_ENABLE_LOG_CONDITIONAL_DEBUG
     DAGGLE_ENABLE_LOG_LOCATION
     DAGGLE_ENABLE_RETURN_STATUS_ERROR_LOGS
     #DAGGLE_ENABLE_RETURN_STATUS_SUCCESS_LOGS
