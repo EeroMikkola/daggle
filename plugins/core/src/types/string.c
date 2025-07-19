@@ -41,7 +41,7 @@ deserialize_string(daggle_instance_h instance, const unsigned char* bin,
 		return;
 	}
 
-	char* res = malloc(len);
+	char* res = malloc(len + 1);
 	memcpy(res, (const char*)bin, sizeof(char) * len);
 	res[len] = '\0';
 
