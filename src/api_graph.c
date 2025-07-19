@@ -20,7 +20,7 @@ daggle_graph_create(daggle_instance_h instance, daggle_graph_h* out_graph)
 	REQUIRE_ALLOCATION_DAGGLE_SUCCESSFUL(graph);
 
 	// Initialize node list with 0 capacity (success guaranteed)
-	dynamic_array_init(0, sizeof(port_t), &graph->nodes);
+	dynamic_array_init(0, sizeof(node_t*), &graph->nodes);
 
 	graph->instance = instance;
 	graph->owner = NULL;
