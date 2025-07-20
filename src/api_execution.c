@@ -33,12 +33,27 @@ prv_graph_master_task_complete(daggle_task_h task, void* context)
 }
 
 void
-prv_node_on_complete(daggle_task_h task, void* context) {
+prv_node_on_start(daggle_task_h task, void* context) {
 	node_t* node = context;
-
 	for (uint64_t i = 0; i < node->ports.length; ++i) {
 		port_t* port = dynamic_array_at(&node->ports, i);
-		if(port->port_variant == DAGGLE_PORT_INPUT && port->variant.input.behavior == DAGGLE_INPUT_BEHAVIOR_REFERENCE && port->variant.input.link) {
+		if(port->port_variant == DAGGLE_PORT_INPUT) {
+			port->variant.input.has_spent_access = false;
+		} else if(port->port_variant == DAGGLE_PORT_OUTPUT) {
+			atomic_store(&port->variant.output.num_pending_accesses, 
+				port->variant.output.links.length);
+		}
+	}
+}
+
+void
+prv_node_on_complete(daggle_task_h task, void* context) {
+	node_t* node = context;
+	for (uint64_t i = 0; i < node->ports.length; ++i) {
+		port_t* port = dynamic_array_at(&node->ports, i);
+		if(port->port_variant == DAGGLE_PORT_INPUT 
+				&& port->variant.input.behavior == DAGGLE_INPUT_BEHAVIOR_REFERENCE 
+				&& port->variant.input.link) {
 			port_t* link = port->variant.input.link;
 			atomic_fetch_sub(&link->variant.output.num_pending_accesses, 1);
 		}
@@ -66,97 +81,60 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 	daggle_error_code_t error = DAGGLE_SUCCESS;
 	dynamic_array_t tasks;
 	error = dynamic_array_init(nodes->length, sizeof(task_t*), &tasks);
-	GOTO_IF_ERROR(error, node_error);
+	GOTO_IF_ERROR(error, list_error);
 
 	graph->locked = true;
 
 	// Create the tasks.
 	for (uint64_t i = 0; i < nodes->length; ++i) {
-		node_t** nodeelem = dynamic_array_at(nodes, i);
-		node_t* node = *nodeelem;
+		node_t* node = *(node_t**)dynamic_array_at(nodes, i);
+		task_t* task = node->task;
 
-		// TODO: move to a more appropriate location.
-		// Reset port counters.
+		// Create task dependencies based on node links.
 		for (uint64_t j = 0; j < node->ports.length; ++j) {
 			port_t* port = dynamic_array_at(&node->ports, j);
 
-			if(port->port_variant == DAGGLE_PORT_INPUT) {
-				port->variant.input.has_spent_access = false;
-			} else if(port->port_variant == DAGGLE_PORT_OUTPUT) {
-				atomic_store(&port->variant.output.num_pending_accesses, 
-					port->variant.output.links.length);
-			}
-		}
-
-		task_t* task = node->task;
-
-		// Create a wrapper context for the task
-		task_add_callback_wrapper(task, NULL, prv_node_on_complete, NULL, node);
-
-		dynamic_array_push(&tasks, &node->task);
-
-		// TODO: Currently the task is consumed, redeclaration is required.
-		// Instead, could reuse the tasks.
-		node->task = NULL;
-	}
-
-	// Construct dependencies with node links.
-	for (uint64_t i = 0; i < tasks.length; ++i) {
-		task_t** tkelem = dynamic_array_at(&tasks, i);
-		task_t* tk = *tkelem;
-
-		node_t** nodeelem = dynamic_array_at(nodes, i);
-		node_t* node = *nodeelem;
-
-		// For each output port of the node.
-		for (uint64_t j = 0; j < node->ports.length; ++j) {
-			port_t* item = dynamic_array_at(&node->ports, j);
-			if (item->port_variant != DAGGLE_PORT_OUTPUT) {
+			// Dependencies are created with output ports only.
+			if (port->port_variant != DAGGLE_PORT_OUTPUT) {
 				continue;
 			}
 
 			// For each link in the port.
-			dynamic_array_t* links = &item->variant.output.links;
-			for (uint64_t j = 0; j < links->length; ++j) {
-				port_t** linkelem = dynamic_array_at(links, j);
+			dynamic_array_t* links = &port->variant.output.links;
+			for (uint64_t k = 0; k < links->length; ++k) {
+				port_t* link = *(port_t**)dynamic_array_at(links, k);
 
-				// Get the owner node of the port.
-				node_t* owner = (*linkelem)->owner;
+				// Get the task of the linked node.
+				node_t* owner = link->owner;
+				task_t* dependant_task = owner->task;
 
-				// Find the tark corresponding to the linked node.
-				task_t* task = NULL;
-				for (uint64_t k = 0; k < nodes->length; ++k) {
-					node_t** ndelem = dynamic_array_at(nodes, k);
-					node_t* n = *ndelem;
-
-					if (n == owner) {
-						task_t** tklm = dynamic_array_at(&tasks, k);
-						task = *tklm;
-						break;
-					}
-
-					task = NULL;
-				}
-
-				// Skip if the task was not found.
-				// i.e. A->B, where only A is executed.
-				if (!task) {
-					LOG(LOG_TAG_ERROR, "NOT FOUND");
-					continue;
-				}
-
-				error = daggle_task_depend(task, tk);
+				error = daggle_task_depend(dependant_task, task);
 				GOTO_IF_ERROR(error, node_error);
 			}
 		}
+
+		// Create a wrapper context for the task
+		// TODO: Add memory error check. 
+		// TODO: Could be optimized with a custom wrapper function + allocate all contexts as array, managed by master task.
+		task_add_callback_wrapper(task, prv_node_on_start, prv_node_on_complete, NULL, node);
+
+		dynamic_array_push(&tasks, &task);
 	}
 
+	// Remove tasks from nodes
+	for (uint64_t i = 0; i < nodes->length; ++i) {
+		node_t* node = *(node_t**)dynamic_array_at(nodes, i);
+		node->task = NULL;
+	}
+
+	// Create a master task for executing the entire graph
 	daggle_task_h master_task;
 	daggle_task_create(prv_graph_master_task_start, 
 		prv_graph_master_task_complete, NULL, graph,
 		 "master", &master_task);
-
 	daggle_task_add_subgraph(master_task, tasks.data, tasks.length);
+
+	// Free the task array.
 	dynamic_array_destroy(&tasks);
 
 	*out_task = master_task;
@@ -165,12 +143,13 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 
 node_error:
 	for (uint64_t i = 0; i <= tasks.length; ++i) {
-		task_t** tkelem = dynamic_array_at(&tasks, i);
-		task_t* tk = *tkelem;
-		task_free(tk);
+		task_t* task = *(task_t**)dynamic_array_at(&tasks, i);
+		task_free(task);
 	}
 
 	dynamic_array_destroy(&tasks);
+
+list_error:
 
 	RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
 }

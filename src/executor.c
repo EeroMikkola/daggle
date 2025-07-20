@@ -26,9 +26,16 @@ executor_try_get_and_run_task(executor_t* executor) {
 	// TODO: Consider designing something better. 
 	task_run(task, (void*)ts_llist_queue_enqueue, &executor->queue);
 
-	// If the task has a subgraph, the task is freed in the tail dispose.
-	if (!task->tail) {
-		task_free(task);
+	// If auto dispose is selected.
+	if (task->auto_dispose) {
+		ASSERT_TRUE((bool)task->tail == (bool)task->num_subtasks, "subtasks without tail, or tail without subtasks cant exist");
+		
+		// The task can dispose, if it does not have an tail (or subtasks).
+		bool can_dispose = task->num_subtasks == 0; 
+
+		if(can_dispose) { 
+			task_free(task);
+		}
 	}
 }
 

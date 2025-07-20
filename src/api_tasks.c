@@ -32,6 +32,9 @@ daggle_task_create(daggle_task_callback_fn start, daggle_task_callback_fn comple
 	task->tail = NULL;
 	task->head = NULL;
 
+	// Automatically dispose by default.
+	task->auto_dispose = true;
+
 	task->num_subtasks = 0;
 	atomic_store(&task->execution.num_pending_subtasks, 1);
 

@@ -55,6 +55,11 @@ daggle_port_connect(daggle_port_h port_a, daggle_port_h port_b)
 		source_parent->info->name_hash.name, target->name_hash.name,
 		target_parent->info->name_hash.name);
 
+	if(source_parent->graph != target_parent->graph) {
+		LOG(LOG_TAG_ERROR, "Ports to connect must belong to the same graph");
+		RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
+	}
+
 	// If there is a pre-existing connection, remove it.
 	if (target->variant.input.link) {
 		RETURN_IF_ERROR(daggle_port_disconnect(target));

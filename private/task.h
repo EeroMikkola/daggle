@@ -36,9 +36,10 @@ typedef struct task_s {
 	task_callbacks_t callbacks;
 
 	char* id;
+	bool auto_dispose; // Should the task dispose itself automatically as soon as possible?
 
 	struct task_s* head; // Parent of the subgraph this is a part of
-	struct task_s* tail; // Tail of this' own subgraph
+	struct task_s* tail; // Tail of this' own subgraph: if NULL -> no subtasks
 
 	uint64_t num_subtasks; // number of subtasks (incl. sink)
 	dynamic_array_t dependants;

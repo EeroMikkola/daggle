@@ -3,6 +3,7 @@
 #include "node.h"
 #include "stdlib.h"
 #include "string.h"
+#include "task.h"
 #include "utility/return_macro.h"
 
 #include <daggle/daggle.h>
@@ -100,7 +101,9 @@ daggle_node_declare_task_v2(daggle_node_h node, daggle_task_h task)
 	REQUIRE_PARAMETER(task);
 
 	node_t* node_impl = node;
-	node_impl->task = task;
+	task_t* task_impl = task;
+
+	node_impl->task = task_impl;
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
 }
