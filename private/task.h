@@ -51,7 +51,7 @@ void
 task_free(task_t* task);
 
 // Add callbacks to call before the original. Use to add multiple callbacks to a task.
-void
+daggle_error_code_t
 task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start, 
 	daggle_task_callback_fn complete, daggle_task_callback_dispose_fn dispose, 
 	void* context);

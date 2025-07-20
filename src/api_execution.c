@@ -72,16 +72,8 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 		RETURN_STATUS(DAGGLE_ERROR_OBJECT_LOCKED);
 	}
 
-	if (nodes->length == 0) {
-		LOG(LOG_TAG_ERROR,
-			"At least one node must be defined to execute a graph");
-		RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
-	}
-
-	daggle_error_code_t error = DAGGLE_SUCCESS;
 	dynamic_array_t tasks;
-	error = dynamic_array_init(nodes->length, sizeof(task_t*), &tasks);
-	GOTO_IF_ERROR(error, list_error);
+	GOTO_IF_ERROR(dynamic_array_init(nodes->length, sizeof(task_t*), &tasks), list_error);
 
 	graph->locked = true;
 
@@ -94,31 +86,28 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 		for (uint64_t j = 0; j < node->ports.length; ++j) {
 			port_t* port = dynamic_array_at(&node->ports, j);
 
-			// Dependencies are created with output ports only.
-			if (port->port_variant != DAGGLE_PORT_OUTPUT) {
+			if (port->port_variant != DAGGLE_PORT_INPUT) {
 				continue;
 			}
 
-			// For each link in the port.
-			dynamic_array_t* links = &port->variant.output.links;
-			for (uint64_t k = 0; k < links->length; ++k) {
-				port_t* link = *(port_t**)dynamic_array_at(links, k);
-
-				// Get the task of the linked node.
-				node_t* owner = link->owner;
-				task_t* dependant_task = owner->task;
-
-				error = daggle_task_depend(dependant_task, task);
-				GOTO_IF_ERROR(error, node_error);
+			port_t* linked_port = port->variant.input.link;
+			if(!linked_port) {
+				continue;
 			}
+
+			node_t* linked_node = linked_port->owner;
+			task_t* dependant_task = linked_node->task;
+
+			GOTO_IF_ERROR(daggle_task_depend(task, dependant_task), node_error);
 		}
 
 		// Create a wrapper context for the task
-		// TODO: Add memory error check. 
 		// TODO: Could be optimized with a custom wrapper function + allocate all contexts as array, managed by master task.
-		task_add_callback_wrapper(task, prv_node_on_start, prv_node_on_complete, NULL, node);
+		GOTO_IF_ERROR(task_add_callback_wrapper(task, prv_node_on_start, prv_node_on_complete, NULL, node), node_error);
 
-		dynamic_array_push(&tasks, &task);
+		// Add the task to the task array.
+		// Note: should never error out, as the array has been preallocated.
+		GOTO_IF_ERROR(dynamic_array_push(&tasks, &task), node_error);
 	}
 
 	// Remove tasks from nodes
@@ -129,10 +118,10 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 
 	// Create a master task for executing the entire graph
 	daggle_task_h master_task;
-	daggle_task_create(prv_graph_master_task_start, 
-		prv_graph_master_task_complete, NULL, graph,
-		 "master", &master_task);
-	daggle_task_add_subgraph(master_task, tasks.data, tasks.length);
+	GOTO_IF_ERROR(daggle_task_create(prv_graph_master_task_start, prv_graph_master_task_complete, NULL, graph, "master", &master_task), node_error);
+
+	// Make graph the subtasks of the master task.
+	GOTO_IF_ERROR(daggle_task_add_subgraph(master_task, tasks.data, tasks.length), master_error);
 
 	// Free the task array.
 	dynamic_array_destroy(&tasks);
@@ -140,6 +129,9 @@ prv_nodes_taskify(graph_t* graph, daggle_task_h* out_task)
 	*out_task = master_task;
 
 	RETURN_STATUS(DAGGLE_SUCCESS);
+
+master_error:
+	task_free(master_task);
 
 node_error:
 	for (uint64_t i = 0; i <= tasks.length; ++i) {
@@ -149,8 +141,8 @@ node_error:
 
 	dynamic_array_destroy(&tasks);
 
-list_error:
-
+list_error: 
+	*out_task = NULL;
 	RETURN_STATUS(DAGGLE_ERROR_UNKNOWN);
 }
 

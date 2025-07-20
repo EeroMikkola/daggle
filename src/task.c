@@ -1,5 +1,6 @@
 #include "task.h"
 
+#include "daggle/daggle.h"
 #include "stdatomic.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -75,12 +76,13 @@ task_free(task_t* task)
 	free(task);
 }
 
-void
+daggle_error_code_t
 task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start, 
 	daggle_task_callback_fn complete, daggle_task_callback_dispose_fn dispose, 
 	void* context) {
 
 	prv_task_wrapper_ctx_t* wctx = malloc(sizeof(*wctx));
+	REQUIRE_ALLOCATION_DAGGLE_SUCCESSFUL(wctx);
 
 	task_callbacks_t wrapper = {
 		.start = start,
@@ -100,6 +102,8 @@ task_add_callback_wrapper(task_t* task, daggle_task_callback_fn start,
 	};
 
 	task->callbacks = handlers;
+
+	RETURN_STATUS(DAGGLE_SUCCESS);
 }
 
 void
